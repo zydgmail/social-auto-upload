@@ -486,6 +486,8 @@ def postVideoBatch():
 
 # 包装函数：在线程中运行异步函数
 def run_async_function(type,id,status_queue):
+    cookiesFile_dir = Path(BASE_DIR / "cookiesFile")
+    cookiesFile_dir.mkdir(parents=True, exist_ok=True)
     match type:
         case '1':
             loop = asyncio.new_event_loop()
