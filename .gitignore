@@ -1,0 +1,11 @@
+/*.zip
+/frontend/node_modules
+/myUtils/__pycache__
+/uploader/__pycache__
+*.pyc
+/python
+/third_party
+/logs
+/cookies
+/db
+__pycache__
