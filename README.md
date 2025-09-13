@@ -55,7 +55,7 @@ Social Auto Upload 是一个现代化的视频自动上传工具，支持将视�
    cd social-auto-upload
    ```
 
-2. **配置设置**
+2. **配置设置**(暂时可以省略)
    - 打开 `conf.py` 文件
    - 设置 `LOCAL_CHROME_PATH` 为您的Chrome浏览器路径
 
@@ -65,6 +65,7 @@ Social Auto Upload 是一个现代化的视频自动上传工具，支持将视�
 
 3. **启动应用**
 
+   由于python和第三方依赖包体超过100M未上传至github,请自行[下载](https://pan.quark.cn/s/036726648ef4),下载完成后解压至根本目录可
    ```bash
    # 双击运行
    run.bat
