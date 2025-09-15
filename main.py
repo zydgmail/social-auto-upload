@@ -155,6 +155,7 @@ def upload_save():
         # 构造文件名和路径
         final_filename = f"{uuid_v1}_{filename}"
         filepath = Path(BASE_DIR / "videoFile" / f"{uuid_v1}_{filename}")
+        filepath.parent.mkdir(parents=True, exist_ok=True)
 
         # 保存文件
         file.save(filepath)
@@ -487,7 +488,7 @@ def postVideoBatch():
 # 包装函数：在线程中运行异步函数
 def run_async_function(type,id,status_queue):
     cookiesFile_dir = Path(BASE_DIR / "cookiesFile")
-    cookiesFile_dir.mkdir(parents=True, exist_ok=True)
+    cookiesFile_dir.mkdir(parents=False, exist_ok=True)
     match type:
         case '1':
             loop = asyncio.new_event_loop()
