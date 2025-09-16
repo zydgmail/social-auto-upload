@@ -49,12 +49,18 @@ async def douyin_setup(account_file, handle=False):
 async def douyin_cookie_gen(account_file):
     async with async_playwright() as playwright:
         options = {
-            'headless': False
+            'headless': False,
+            'args': ['--start-maximized']  # 启动时最大化窗口
         }
         # Make sure to run headed.
         browser = await playwright.chromium.launch(**options)
         # Setup context however you like.
-        context = await browser.new_context()  # Pass any options
+        context = await browser.new_context(
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )
         context = await set_init_script(context)
         # Pause the page, and start recording manually.
         page = await context.new_page()
@@ -98,64 +104,48 @@ class DouYinVideo(object):
     async def upload(self, playwright: Playwright) -> None:
         # 使用 Chromium 浏览器启动一个浏览器实例
         if self.local_executable_path:
-            browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path)
+            browser = await playwright.chromium.launch(
+                headless=False, 
+                executable_path=self.local_executable_path,
+                # args=['--start-maximized']  # 启动时最大化窗口
+            )
         else:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=False,
+                # args=['--start-maximized']  # 启动时最大化窗口
+            )
         # 创建一个浏览器上下文，使用指定的 cookie 文件
-        context = await browser.new_context(storage_state=f"{self.account_file}")
+        context = await browser.new_context(
+            storage_state=f"{self.account_file}",
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )
         context = await set_init_script(context)
 
         # 创建一个新的页面
         page = await context.new_page()
-        # 访问指定的 URL
-        await page.goto("https://creator.douyin.com/creator-micro/content/upload")
+
+        try:
+            await page.goto("https://creator.douyin.com/creator-micro/content/post/video?enter_from=publish_page", timeout=3000)
+            douyin_logger.info("[+] 成功进入version_2发布页面!")
+        except Exception as e:
+            douyin_logger.error(f"  [-] 超时未进入视频发布页面，cookies过期或者其他原因，重新尝试...{e}")
+
+        await page.locator("div[class^='upload-card'] input[type=file]").set_input_files(self.file_path)  #上传视频
         douyin_logger.info(f'[+]正在上传-------{self.title}.mp4')
-        # 等待页面跳转到指定的 URL，没进入，则自动等待到超时
-        douyin_logger.info(f'[-] 正在打开主页...')
-        await page.wait_for_url("https://creator.douyin.com/creator-micro/content/upload")
-        # 点击 "上传视频" 按钮
-        await page.locator("div[class^='container'] input").set_input_files(self.file_path)
-
-        # 等待页面跳转到指定的 URL 2025.01.08修改在原有基础上兼容两种页面
-        while True:
-            try:
-                # 尝试等待第一个 URL
-                await page.wait_for_url(
-                    "https://creator.douyin.com/creator-micro/content/publish?enter_from=publish_page", timeout=3000)
-                douyin_logger.info("[+] 成功进入version_1发布页面!")
-                break  # 成功进入页面后跳出循环
-            except Exception:
-                try:
-                    # 如果第一个 URL 超时，再尝试等待第二个 URL
-                    await page.wait_for_url(
-                        "https://creator.douyin.com/creator-micro/content/post/video?enter_from=publish_page",
-                        timeout=3000)
-                    douyin_logger.info("[+] 成功进入version_2发布页面!")
-
-                    break  # 成功进入页面后跳出循环
-                except:
-                    print("  [-] 超时未进入视频发布页面，重新尝试...")
-                    await asyncio.sleep(0.5)  # 等待 0.5 秒后重新尝试
-        # 填充标题和话题
-        # 检查是否存在包含输入框的元素
-        # 这里为了避免页面变化，故使用相对位置定位：作品标题父级右侧第一个元素的input子元素
         await asyncio.sleep(1)
-        douyin_logger.info(f'  [-] 正在填充标题和话题...')
-        title_container = page.get_by_text('作品标题').locator("..").locator("xpath=following-sibling::div[1]").locator("input")
-        if await title_container.count():
-            await title_container.fill(self.title[:30])
-        else:
-            titlecontainer = page.locator(".notranslate")
-            await titlecontainer.click()
-            await page.keyboard.press("Backspace")
-            await page.keyboard.press("Control+KeyA")
-            await page.keyboard.press("Delete")
-            await page.keyboard.type(self.title)
-            await page.keyboard.press("Enter")
+
+        await page.locator("div[class^='container-'] input[type=text]").first.fill(self.title[:30])
+        douyin_logger.info(f'  [-] 正在填充标题...')
+        await asyncio.sleep(1)
+
         css_selector = ".zone-container"
-        for index, tag in enumerate(self.tags, start=1):
+        for _, tag in enumerate(self.tags, start=1):
             await page.type(css_selector, "#" + tag)
             await page.press(css_selector, "Space")
+            await asyncio.sleep(0.5)
         douyin_logger.info(f'总共添加{len(self.tags)}个话题')
 
         while True:
@@ -180,20 +170,17 @@ class DouYinVideo(object):
         #上传视频封面
         await self.set_thumbnail(page, self.thumbnail_path)
 
-        # 更换可见元素
-        await self.set_location(page, "深圳市")
+        # # 頭條/西瓜
+        # third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
+        # # 定位是否有第三方平台
+        # if await page.locator(third_part_element).count():
+        #     # 检测是否是已选中状态
+        #     if 'semi-switch-checked' not in await page.eval_on_selector(third_part_element, 'div => div.className'):
+        #         await page.locator(third_part_element).locator('input.semi-switch-native-control').click()
 
-        # 頭條/西瓜
-        third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
-        # 定位是否有第三方平台
-        if await page.locator(third_part_element).count():
-            # 检测是否是已选中状态
-            if 'semi-switch-checked' not in await page.eval_on_selector(third_part_element, 'div => div.className'):
-                await page.locator(third_part_element).locator('input.semi-switch-native-control').click()
+        # if self.publish_date != 0:
+        #     await self.set_schedule_time_douyin(page, self.publish_date)
 
-        if self.publish_date != 0:
-            await self.set_schedule_time_douyin(page, self.publish_date)
-        sleep(100000)
         # 判断视频是否发布成功
         while True:
             # 判断视频是否发布成功
@@ -231,6 +218,16 @@ class DouYinVideo(object):
             # if await finish_confirm_element.count():
             #     await finish_confirm_element.click()
             # await page.locator("div[class^='footer'] button:has-text('完成')").click()
+        else:
+            # try:
+            #     douyin_logger.info("正在等待智能推荐封面...")
+            #     await page.locator('span:text("智能推荐封面")').wait_for(timeout=30000)
+            #     await page.locator("div[class^='recommendCover-']").first.click()
+            #     await page.locator('button:has-text("确定")').click()
+            # except:
+                # douyin_logger.info("智能推荐封面超时，跳过不要封面了...")
+            douyin_logger.info("没上传封面，就不要封面了，让系统自动生成吧...")
+            await asyncio.sleep(3)
 
     async def set_location(self, page: Page, location: str = "杭州市"):
         # todo supoort location later
