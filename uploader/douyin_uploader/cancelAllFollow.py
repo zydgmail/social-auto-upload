@@ -3,6 +3,7 @@
 import asyncio
 import os
 import sys
+import random
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -55,7 +56,7 @@ async def click_unfollow_once(page) -> bool:
         pass
 
     # Small wait to allow state to change
-    await page.wait_for_timeout(1000)
+    await page.wait_for_timeout(random.randint(1000, 2000))
     return True
 
 
@@ -94,7 +95,7 @@ async def main():
 
             # Refresh for the next iteration
             await page.reload(wait_until="domcontentloaded")
-            await asyncio.sleep(2)
+            await asyncio.sleep(random.uniform(0.5, 2))
 
         # Save cookies back (in case of updates)
         await context.storage_state(path=COOKIE_FILE)

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from time import sleep
 
 from playwright.async_api import Playwright, async_playwright, Page
 import os
@@ -192,7 +193,7 @@ class DouYinVideo(object):
 
         if self.publish_date != 0:
             await self.set_schedule_time_douyin(page, self.publish_date)
-
+        sleep(100000)
         # 判断视频是否发布成功
         while True:
             # 判断视频是否发布成功
