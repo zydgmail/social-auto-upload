@@ -3,8 +3,8 @@ import { http } from '@/utils/request'
 // 账号管理相关API
 export const accountApi = {
   // 获取有效账号列表
-  getValidAccounts() {
-    return http.get('/getValidAccounts')
+  getValidAccounts(params) {
+    return http.get('/getValidAccounts', params)
   },
   
   // 添加账号

@@ -140,13 +140,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Check, Close, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAccountStore } from '@/stores/account'
 import { useAppStore } from '@/stores/app'
 import { materialApi } from '@/api/material'
 import { validatePublishForm } from '@/utils/formValidation'
+import { accountApi } from '@/api/account'
 
 // 导入子组件
 import TabManagement from '@/components/publish/TabManagement.vue'
@@ -180,6 +181,18 @@ const materials = computed(() => appStore.materials)
 
 // 批量发布相关状态
 const batchPublishing = ref(false)
+// 初始化时快速获取账号列表（不触发验证）
+onMounted(async () => {
+  try {
+    const res = await accountApi.getValidAccounts({ validate: 0 })
+    if (res && res.code === 200 && Array.isArray(res.data)) {
+      accountStore.setAccounts(res.data)
+    }
+  } catch (e) {
+    // 静默失败，避免影响页面加载
+    console.warn('初始化获取账号失败', e)
+  }
+})
 
 // tab页数据 - 默认只有一个tab
 const tabs = reactive([

@@ -16,6 +16,11 @@ from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_
 
 active_queues = {}
 
+# 全局账号验证缓存时间（秒），默认 3600 秒（1 小时）
+ACCOUNT_STATUS_TTL_SECONDS = int(os.getenv('ACCOUNT_STATUS_TTL_SECONDS', '3600'))
+# 上次完整验证时间戳
+_last_accounts_validation_ts: float = 0.0
+
 # Detect frontend dist directory for portable serving
 ROOT_DIR = Path(__file__).resolve().parent
 
@@ -215,34 +220,71 @@ def get_all_files():
 
 @app.route("/getValidAccounts",methods=['GET'])
 async def getValidAccounts():
+    """
+    获取账号列表。
+    可选参数：
+      - validate: 1/true 表示触发校验；0/false 表示仅返回数据库缓存状态（更快）。默认 0。
+      - force: 1/true 表示忽略 TTL 强制校验。
+    说明：
+      - 为避免频繁打开浏览器验证，增加了 TTL，默认 1 小时内重复请求不会再次校验。
+    """
+    global _last_accounts_validation_ts
+
+    validate = request.args.get('validate', '0').lower() in ('1', 'true', 'yes')
+    force = request.args.get('force', '0').lower() in ('1', 'true', 'yes')
+
+    now_ts = time.time()
+    should_validate = validate and (force or (now_ts - _last_accounts_validation_ts >= ACCOUNT_STATUS_TTL_SECONDS))
+
     with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
         cursor = conn.cursor()
         cursor.execute('''
         SELECT * FROM user_info''')
         rows = cursor.fetchall()
         rows_list = [list(row) for row in rows]
-        print("\n📋 当前数据表内容：")
-        for row in rows:
-            print(row)
+
+        # 快速返回：不需要校验时，直接返回数据库中的缓存状态
+        if not should_validate:
+            return jsonify({
+                "code": 200,
+                "msg": None,
+                "data": rows_list
+            }), 200
+
+        print("\n📋 开始账号有效性校验（可能需数秒）...")
+        any_updated = False
         for row in rows_list:
-            flag = await check_cookie(row[1],row[2])
-            if not flag:
-                row[4] = 0
+            # row: [id, type, filePath, userName, status]
+            try:
+                flag = await check_cookie(row[1], row[2])
+            except Exception as e:
+                # 出错时保守置为无效
+                print(f"check_cookie 出错: id={row[0]} err={e}")
+                flag = False
+
+            new_status = 1 if flag else 0
+            if row[4] != new_status:
+                row[4] = new_status
                 cursor.execute('''
                 UPDATE user_info 
                 SET status = ? 
                 WHERE id = ?
-                ''', (0,row[0]))
-                conn.commit()
-                print("✅ 用户状态已更新")
-        for row in rows:
-            print(row)
-        return jsonify(
-                        {
-                            "code": 200,
-                            "msg": None,
-                            "data": rows_list
-                        }),200
+                ''', (new_status, row[0]))
+                any_updated = True
+
+        if any_updated:
+            conn.commit()
+            print("✅ 用户状态已更新并写入数据库")
+        else:
+            print("ℹ️ 用户状态无变更，保持现状")
+
+        _last_accounts_validation_ts = time.time()
+
+        return jsonify({
+            "code": 200,
+            "msg": None,
+            "data": rows_list
+        }), 200
 
 @app.route('/deleteFile', methods=['GET'])
 def delete_file():

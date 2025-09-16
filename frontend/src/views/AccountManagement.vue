@@ -1,5 +1,5 @@
 <template>
-  <div class="account-management">
+  <div class="account-management" v-loading="appStore.isAccountRefreshing" element-loading-text="正在验证账号...">
     <div class="page-header">
       <h1>账号管理</h1>
     </div>
@@ -19,9 +19,9 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
-                <el-button type="info" @click="fetchAccounts" :loading="false">
-                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing }"><Refresh /></el-icon>
-                  <span v-if="appStore.isAccountRefreshing">刷新中</span>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
                 </el-button>
               </div>
             </div>
@@ -82,9 +82,9 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
-                <el-button type="info" @click="fetchAccounts" :loading="false">
-                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing }"><Refresh /></el-icon>
-                  <span v-if="appStore.isAccountRefreshing">刷新中</span>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
                 </el-button>
               </div>
             </div>
@@ -145,9 +145,9 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
-                <el-button type="info" @click="fetchAccounts" :loading="false">
-                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing }"><Refresh /></el-icon>
-                  <span v-if="appStore.isAccountRefreshing">刷新中</span>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
                 </el-button>
               </div>
             </div>
@@ -208,9 +208,9 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
-                <el-button type="info" @click="fetchAccounts" :loading="false">
-                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing }"><Refresh /></el-icon>
-                  <span v-if="appStore.isAccountRefreshing">刷新中</span>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
                 </el-button>
               </div>
             </div>
@@ -271,9 +271,9 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
-                <el-button type="info" @click="fetchAccounts" :loading="false">
-                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing }"><Refresh /></el-icon>
-                  <span v-if="appStore.isAccountRefreshing">刷新中</span>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
                 </el-button>
               </div>
             </div>
@@ -411,16 +411,18 @@ const activeTab = ref('all')
 const searchKeyword = ref('')
 
 // 获取账号数据
-const fetchAccounts = async () => {
+const fetchAccounts = async (validate = false) => {
   if (appStore.isAccountRefreshing) return
   
   appStore.setAccountRefreshing(true)
   
   try {
-    const res = await accountApi.getValidAccounts()
+    const res = await accountApi.getValidAccounts({ validate: validate ? 1 : 0 })
     if (res.code === 200 && res.data) {
       accountStore.setAccounts(res.data)
-      ElMessage.success('账号数据获取成功')
+      if (validate) {
+        ElMessage.success('账号验证完成')
+      }
       // 标记为已访问
       if (appStore.isFirstTimeAccountManagement) {
         appStore.setAccountManagementVisited()
@@ -436,11 +438,10 @@ const fetchAccounts = async () => {
   }
 }
 
-// 页面加载时获取账号数据
+// 页面加载时获取账号数据（不触发验证，快速返回）
 onMounted(() => {
-  // 只有第一次进入时才获取数据
   if (appStore.isFirstTimeAccountManagement) {
-    fetchAccounts()
+    fetchAccounts(false)
   }
 })
 
@@ -771,6 +772,14 @@ onBeforeUnmount(() => {
         
         .el-icon.is-loading {
           animation: rotate 1s linear infinite;
+        }
+
+        .refresh-icon {
+          margin-right: 6px;
+        }
+
+        .refresh-text {
+          font-size: 14px;
         }
       }
     }
