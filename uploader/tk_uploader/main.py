@@ -8,7 +8,7 @@ import asyncio
 from uploader.tk_uploader.tk_config import Tk_Locator
 from utils.base_social_media import set_init_script
 from utils.files_times import get_absolute_path
-from utils.log import tiktok_logger
+from utils.log import tiktok_logger, TIKTOK_SCREENSHOT_DIR
 
 
 async def cookie_auth(account_file):
@@ -233,7 +233,8 @@ class TiktokVideo(object):
                 else:
                     tiktok_logger.exception(f"  [-] Exception: {e}")
                     tiktok_logger.info("  [-] video publishing")
-                    await page.screenshot(full_page=True)
+                    screenshot_path = os.path.join(TIKTOK_SCREENSHOT_DIR, f"tiktok_{int(asyncio.get_event_loop().time()*1000)}.png")
+                    await page.screenshot(path=screenshot_path, full_page=True)
                     await asyncio.sleep(0.5)
 
     async def detect_upload_status(self, page):

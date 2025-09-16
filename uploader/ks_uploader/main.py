@@ -8,7 +8,7 @@ import asyncio
 from conf import LOCAL_CHROME_PATH
 from utils.base_social_media import set_init_script
 from utils.files_times import get_absolute_path
-from utils.log import kuaishou_logger
+from utils.log import kuaishou_logger, KUAISHOU_SCREENSHOT_DIR
 
 
 async def cookie_auth(account_file):
@@ -182,7 +182,8 @@ class KSVideo(object):
                 break
             except Exception as e:
                 kuaishou_logger.info(f"视频正在发布中... 错误: {e}")
-                await page.screenshot(full_page=True)
+                screenshot_path = os.path.join(KUAISHOU_SCREENSHOT_DIR, f"ks_{int(asyncio.get_event_loop().time()*1000)}.png")
+                await page.screenshot(path=screenshot_path, full_page=True)
                 await asyncio.sleep(1)
 
         await context.storage_state(path=self.account_file)  # 保存cookie

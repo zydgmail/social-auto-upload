@@ -3,6 +3,7 @@ from sys import stdout
 from loguru import logger
 
 from conf import BASE_DIR
+from pathlib import Path as _Path
 
 
 def log_formatter(record: dict) -> str:
@@ -51,3 +52,15 @@ bilibili_logger = create_logger('bilibili', 'logs/bilibili.log')
 kuaishou_logger = create_logger('kuaishou', 'logs/kuaishou.log')
 baijiahao_logger = create_logger('baijiahao', 'logs/baijiahao.log')
 xiaohongshu_logger = create_logger('xiaohongshu', 'logs/xiaohongshu.log')
+
+# screenshot directories (created on import)
+_SCREENSHOT_BASE = BASE_DIR / 'logs'
+DOUYIN_SCREENSHOT_DIR = str(_Path(_SCREENSHOT_BASE / 'douyin_screenshot'))
+KUAISHOU_SCREENSHOT_DIR = str(_Path(_SCREENSHOT_BASE / 'kuaishou_screenshot'))
+TIKTOK_SCREENSHOT_DIR = str(_Path(_SCREENSHOT_BASE / 'tiktok_screenshot'))
+XIAOHONGSHU_SCREENSHOT_DIR = str(_Path(_SCREENSHOT_BASE / 'xiaohongshu_screenshot'))
+
+_Path(DOUYIN_SCREENSHOT_DIR).mkdir(parents=True, exist_ok=True)
+_Path(KUAISHOU_SCREENSHOT_DIR).mkdir(parents=True, exist_ok=True)
+_Path(TIKTOK_SCREENSHOT_DIR).mkdir(parents=True, exist_ok=True)
+_Path(XIAOHONGSHU_SCREENSHOT_DIR).mkdir(parents=True, exist_ok=True)
