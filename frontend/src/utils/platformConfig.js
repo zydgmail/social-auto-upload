@@ -36,9 +36,9 @@ export const PLATFORM_CONFIG = {
     key: 1,
     name: '小红书',
     titleLimit: 20, // 标题字数限制
-    topicLimit: 3,   // 话题数量限制
+    topicLimit: 10,   // 话题数量限制
     titlePlaceholder: '请输入标题（最多20字）',
-    topicPlaceholder: '最多可添加3个话题'
+    topicPlaceholder: '最多可添加10个话题'
   }
 }
 

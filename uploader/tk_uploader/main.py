@@ -58,7 +58,12 @@ async def get_tiktok_cookie(account_file):
         # Make sure to run headed.
         browser = await playwright.firefox.launch(**options)
         # Setup context however you like.
-        context = await browser.new_context()  # Pass any options
+        context = await browser.new_context(
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='en-US',  # TikTok使用英文
+            timezone_id='America/New_York'  # TikTok使用美国时区
+        )  # Pass any options
         context = await set_init_script(context)
         # Pause the page, and start recording manually.
         page = await context.new_page()
@@ -141,7 +146,13 @@ class TiktokVideo(object):
 
     async def upload(self, playwright: Playwright) -> None:
         browser = await playwright.firefox.launch(headless=False)
-        context = await browser.new_context(storage_state=f"{self.account_file}")
+        context = await browser.new_context(
+            storage_state=f"{self.account_file}",
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='en-US',  # TikTok使用英文
+            timezone_id='America/New_York'  # TikTok使用美国时区
+        )
         context = await set_init_script(context)
         page = await context.new_page()
 

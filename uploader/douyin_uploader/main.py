@@ -50,7 +50,7 @@ async def douyin_cookie_gen(account_file):
     async with async_playwright() as playwright:
         options = {
             'headless': False,
-            'args': ['--start-maximized']  # 启动时最大化窗口
+            # 'args': ['--start-maximized']  # 启动时最大化窗口
         }
         # Make sure to run headed.
         browser = await playwright.chromium.launch(**options)

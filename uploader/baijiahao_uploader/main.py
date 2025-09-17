@@ -24,7 +24,12 @@ async def baijiahao_cookie_gen(account_file):
         # Make sure to run headed.
         browser = await playwright.chromium.launch(**options)
         # Setup context however you like.
-        context = await browser.new_context()  # Pass any options
+        context = await browser.new_context(
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )  # Pass any options
         context = await set_init_script(context)
         # Pause the page, and start recording manually.
         page = await context.new_page()
@@ -121,9 +126,16 @@ class BaiJiaHaoVideo(object):
         # 使用 Chromium 浏览器启动一个浏览器实例
         browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path, proxy=self.proxy_setting)
         # 创建一个浏览器上下文，使用指定的 cookie 文件
-        context = await browser.new_context(storage_state=f"{self.account_file}", user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.4324.150 Safari/537.36')
+        context = await browser.new_context(
+            storage_state=f"{self.account_file}", 
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.4324.150 Safari/537.36',
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )
         # context = await set_init_script(context)
-        await context.grant_permissions(['geolocation'])
+        # await context.grant_permissions(['geolocation'])
 
         # 创建一个新的页面
         page = await context.new_page()
@@ -257,10 +269,14 @@ class BaiJiaHaoVideo(object):
         context = await browser.new_context(
             viewport={"width": 1600, "height": 900},
             storage_state=f"{self.account_file}",
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.4324.150 Safari/537.36'
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.4324.150 Safari/537.36',
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
         )
         # context = await set_init_script(context)
-        await context.grant_permissions(['geolocation'])
+        # await context.grant_permissions(['geolocation'])
 
         # 创建一个新的页面
         page = await context.new_page()

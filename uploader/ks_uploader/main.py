@@ -51,7 +51,12 @@ async def get_ks_cookie(account_file):
         # Make sure to run headed.
         browser = await playwright.chromium.launch(**options)
         # Setup context however you like.
-        context = await browser.new_context()  # Pass any options
+        context = await browser.new_context(
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )  # Pass any options
         context = await set_init_script(context)
         # Pause the page, and start recording manually.
         page = await context.new_page()
@@ -87,7 +92,13 @@ class KSVideo(object):
             browser = await playwright.chromium.launch(
                 headless=False
             )  # 创建一个浏览器上下文，使用指定的 cookie 文件
-        context = await browser.new_context(storage_state=f"{self.account_file}")
+        context = await browser.new_context(
+            storage_state=f"{self.account_file}",
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )
         context = await set_init_script(context)
         # 创建一个新的页面
         page = await context.new_page()

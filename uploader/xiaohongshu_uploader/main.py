@@ -53,7 +53,12 @@ async def xiaohongshu_cookie_gen(account_file):
         # Make sure to run headed.
         browser = await playwright.chromium.launch(**options)
         # Setup context however you like.
-        context = await browser.new_context()  # Pass any options
+        context = await browser.new_context(
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
+        )  # Pass any options
         context = await set_init_script(context)
         # Pause the page, and start recording manually.
         page = await context.new_page()
@@ -114,7 +119,11 @@ class XiaoHongShuVideo(object):
         # 创建一个浏览器上下文，使用指定的 cookie 文件
         context = await browser.new_context(
             viewport={"width": 1600, "height": 900},
-            storage_state=f"{self.account_file}"
+            storage_state=f"{self.account_file}",
+            permissions=[],  # 禁用所有权限请求
+            geolocation=None,  # 禁用地理位置
+            locale='zh-CN',  # 设置语言为中文
+            timezone_id='Asia/Shanghai'  # 设置时区
         )
         context = await set_init_script(context)
 
@@ -152,7 +161,7 @@ class XiaoHongShuVideo(object):
                     else:
                         print("  [-] 未找到上传成功标识，继续等待...")
                 else:
-                    print("  [-] 未找到预览元素，继续等待...")
+                    print("  [-] 正在上传，继续等待...")
                     await asyncio.sleep(1)
             except Exception as e:
                 print(f"  [-] 检测过程出错: {str(e)}，重新尝试...")
@@ -174,44 +183,11 @@ class XiaoHongShuVideo(object):
             await page.keyboard.press("Delete")
             await page.keyboard.type(self.title)
             await page.keyboard.press("Enter")
-        css_selector = ".ql-editor" # 不能加上 .ql-blank 属性，这样只能获取第一次非空状态
-        for index, tag in enumerate(self.tags, start=1):
+        css_selector = ".tiptap.ProseMirror" # 更新为正确的CSS选择器，匹配contenteditable的div元素
+        for _, tag in enumerate(self.tags, start=1):
             await page.type(css_selector, "#" + tag)
-            await page.press(css_selector, "Space")
+            await page.press(css_selector, "Enter")
         xiaohongshu_logger.info(f'总共添加{len(self.tags)}个话题')
-
-        # while True:
-        #     # 判断重新上传按钮是否存在，如果不存在，代表视频正在上传，则等待
-        #     try:
-        #         #  新版：定位重新上传
-        #         number = await page.locator('[class^="long-card"] div:has-text("重新上传")').count()
-        #         if number > 0:
-        #             xiaohongshu_logger.success("  [-]视频上传完毕")
-        #             break
-        #         else:
-        #             xiaohongshu_logger.info("  [-] 正在上传视频中...")
-        #             await asyncio.sleep(2)
-
-        #             if await page.locator('div.progress-div > div:has-text("上传失败")').count():
-        #                 xiaohongshu_logger.error("  [-] 发现上传出错了... 准备重试")
-        #                 await self.handle_upload_error(page)
-        #     except:
-        #         xiaohongshu_logger.info("  [-] 正在上传视频中...")
-        #         await asyncio.sleep(2)
-        
-        # 上传视频封面
-        # await self.set_thumbnail(page, self.thumbnail_path)
-
-        # 更换可见元素
-        # await self.set_location(page, "青岛市")
-
-        # # 頭條/西瓜
-        # third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
-        # # 定位是否有第三方平台
-        # if await page.locator(third_part_element).count():
-        #     # 检测是否是已选中状态
-        #     if 'semi-switch-checked' not in await page.eval_on_selector(third_part_element, 'div => div.className'):
-        #         await page.locator(third_part_element).locator('input.semi-switch-native-control').click()
 
         if self.publish_date != 0:
             await self.set_schedule_time_xiaohongshu(page, self.publish_date)
