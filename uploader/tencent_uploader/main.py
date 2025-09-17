@@ -6,7 +6,7 @@ import os
 import asyncio
 
 from conf import LOCAL_CHROME_PATH
-from utils.base_social_media import set_init_script
+from utils.base_social_media import set_init_script, launch_chromium_with_codecs
 from utils.files_times import get_absolute_path
 from utils.log import tencent_logger
 
@@ -51,14 +51,7 @@ async def cookie_auth(account_file):
 
 async def get_tencent_cookie(account_file):
     async with async_playwright() as playwright:
-        options = {
-            'args': [
-                '--lang en-GB'
-            ],
-            'headless': False,  # Set headless option here
-        }
-        # Make sure to run headed.
-        browser = await playwright.chromium.launch(**options)
+        browser = await launch_chromium_with_codecs(playwright, headless=False, executable_path=None)
         # Setup context however you like.
         context = await browser.new_context(
             permissions=[],  # 禁用所有权限请求
@@ -139,11 +132,8 @@ class TencentVideo(object):
         await file_input.set_input_files(self.file_path)
 
     async def upload(self, playwright: Playwright) -> None:
-        # 使用 Chromium (这里使用系统内浏览器，用chromium 会造成h264错误
-        if self.local_executable_path and self.local_executable_path.strip():
-            browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path)
-        else:
-            browser = await playwright.chromium.launch(headless=False)
+        # 使用系统浏览器优先，避免 H.264 错误
+        browser = await launch_chromium_with_codecs(playwright, headless=False, executable_path=self.local_executable_path)
         # 创建一个浏览器上下文，使用指定的 cookie 文件
         context = await browser.new_context(
             storage_state=f"{self.account_file}",

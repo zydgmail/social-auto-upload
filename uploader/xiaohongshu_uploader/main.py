@@ -6,7 +6,7 @@ import os
 import asyncio
 
 from conf import LOCAL_CHROME_PATH
-from utils.base_social_media import set_init_script
+from utils.base_social_media import set_init_script, launch_chromium_with_codecs
 from utils.log import xiaohongshu_logger, XIAOHONGSHU_SCREENSHOT_DIR
 
 
@@ -112,10 +112,7 @@ class XiaoHongShuVideo(object):
 
     async def upload(self, playwright: Playwright) -> None:
         # 使用 Chromium 浏览器启动一个浏览器实例
-        if self.local_executable_path and self.local_executable_path.strip():
-            browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path)
-        else:
-            browser = await playwright.chromium.launch(headless=False)
+        browser = await launch_chromium_with_codecs(playwright, headless=False, executable_path=self.local_executable_path)
         # 创建一个浏览器上下文，使用指定的 cookie 文件
         context = await browser.new_context(
             viewport={"width": 1600, "height": 900},

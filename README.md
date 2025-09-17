@@ -65,7 +65,7 @@ Social Auto Upload 是一个现代化的视频自动上传工具，支持将视�
 
 3. **启动应用**
 
-   <span style="color:red;">由于python和第三方依赖包体超过100M未上传至github,请自行[下载](https://pan.quark.cn/s/036726648ef4),下载完成后解压至项目根目录即可运行</span>
+   <span style="color:red;">由于python和第三方依赖包体超过100M未上传至github,请自行[下载](https://pan.quark.cn/s/1af6f5a2032d),下载完成后解压至项目根目录即可运行</span>
    ```bash
    # 双击运行
    run.bat
@@ -178,11 +178,11 @@ PROXY_PORT = 1080
 
 - 🐛 Bug反馈：提交Issue
 - 💡 功能建议：提交Feature Request  
-- 📖 详细文档：查看原项目[官方文档](https://sap-doc.nasdaddy.com/)
+- 📖 详细文档：查看项目[视频文件](https://space.bilibili.com/3546934899903006)
 
 ## 📄 开源协议
 
-本项目基于 MIT 协议开源，在遵循原项目协议的基础上，您可以自由使用、修改和分发。
+本项目基于 Apache 协议开源，在遵循原项目协议的基础上，您可以自由使用、但请勿用于非法及商业用途。
 
 ## 🙏 致谢
 
