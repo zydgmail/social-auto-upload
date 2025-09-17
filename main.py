@@ -256,10 +256,15 @@ async def getValidAccounts():
         for row in rows_list:
             # row: [id, type, filePath, userName, status]
             try:
-                flag = await check_cookie(row[1], row[2])
+                # 预览模式：当请求带 preview=1 时打开可视化浏览器以便观察
+                preview = request.args.get('preview', '0').lower() in ('1', 'true', 'yes')
+                platform = {1: 'xhs', 2: 'tencent', 3: 'douyin', 4: 'kuaishou'}.get(row[1], 'unknown')
+                print(f"   - 正在校验 [{platform}] 账号: id={row[0]} user={row[3]}")
+                flag = await check_cookie(row[1], row[2], preview=preview)
+                print(f"     → [{platform}] 结果: {'cookie 有效' if flag else 'cookie 失效'}")
             except Exception as e:
                 # 出错时保守置为无效
-                print(f"check_cookie 出错: id={row[0]} err={e}")
+                print(f"check_cookie 出错: platform={row[1]} id={row[0]} user={row[3]} err={e}")
                 flag = False
 
             new_status = 1 if flag else 0
