@@ -21,7 +21,10 @@ async def douyin_cookie_gen(id,status_queue):
             'headless': False
         }
         # Make sure to run headed.
-        browser = await playwright.chromium.launch(**options)
+        browser = await playwright.chromium.launch(
+            **options,
+            executable_path=str(BASE_DIR / "third_party" / "playwright" / "ms-playwright" / "chromium-1169" / "chrome-win" / "chrome.exe")
+        )
         # Setup context however you like.
         context = await browser.new_context()  # Pass any options
         context = await set_init_script(context)
@@ -88,7 +91,10 @@ async def get_tencent_cookie(id,status_queue):
             'headless': False,  # Set headless option here
         }
         # Make sure to run headed.
-        browser = await playwright.chromium.launch(**options)
+        browser = await playwright.chromium.launch(
+            **options,
+            executable_path=str(BASE_DIR / "third_party" / "playwright" / "ms-playwright" / "chromium-1169" / "chrome-win" / "chrome.exe")
+        )
         # Setup context however you like.
         context = await browser.new_context()  # Pass any options
         # Pause the page, and start recording manually.
@@ -162,7 +168,10 @@ async def get_ks_cookie(id,status_queue):
             'headless': False,  # Set headless option here
         }
         # Make sure to run headed.
-        browser = await playwright.chromium.launch(**options)
+        browser = await playwright.chromium.launch(
+            **options,
+            executable_path=str(BASE_DIR / "third_party" / "playwright" / "ms-playwright" / "chromium-1169" / "chrome-win" / "chrome.exe")
+        )
         # Setup context however you like.
         context = await browser.new_context()  # Pass any options
         context = await set_init_script(context)
@@ -235,7 +244,10 @@ async def xiaohongshu_cookie_gen(id,status_queue):
             'headless': False,  # Set headless option here
         }
         # Make sure to run headed.
-        browser = await playwright.chromium.launch(**options)
+        browser = await playwright.chromium.launch(
+            **options,
+            executable_path=str(BASE_DIR / "third_party" / "playwright" / "ms-playwright" / "chromium-1169" / "chrome-win" / "chrome.exe")
+        )
         # Setup context however you like.
         context = await browser.new_context()  # Pass any options
         context = await set_init_script(context)
