@@ -124,7 +124,10 @@ class BaiJiaHaoVideo(object):
 
     async def upload(self, playwright: Playwright) -> None:
         # 使用 Chromium 浏览器启动一个浏览器实例
-        browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path, proxy=self.proxy_setting)
+        if self.local_executable_path and self.local_executable_path.strip():
+            browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path, proxy=self.proxy_setting)
+        else:
+            browser = await playwright.chromium.launch(headless=False, proxy=self.proxy_setting)
         # 创建一个浏览器上下文，使用指定的 cookie 文件
         context = await browser.new_context(
             storage_state=f"{self.account_file}", 
@@ -264,7 +267,10 @@ class BaiJiaHaoVideo(object):
     # 使用 AI成片 功能
     async def ai2video(self, playwright: Playwright) -> None:
         # 使用 Chromium 浏览器启动一个浏览器实例
-        browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path, proxy=self.proxy_setting)
+        if self.local_executable_path and self.local_executable_path.strip():
+            browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path, proxy=self.proxy_setting)
+        else:
+            browser = await playwright.chromium.launch(headless=False, proxy=self.proxy_setting)
         # 创建一个浏览器上下文，使用指定的 cookie 文件
         context = await browser.new_context(
             viewport={"width": 1600, "height": 900},

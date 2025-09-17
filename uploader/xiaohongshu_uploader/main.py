@@ -112,7 +112,7 @@ class XiaoHongShuVideo(object):
 
     async def upload(self, playwright: Playwright) -> None:
         # 使用 Chromium 浏览器启动一个浏览器实例
-        if self.local_executable_path:
+        if self.local_executable_path and self.local_executable_path.strip():
             browser = await playwright.chromium.launch(headless=False, executable_path=self.local_executable_path)
         else:
             browser = await playwright.chromium.launch(headless=False)

@@ -26,10 +26,10 @@ export const PLATFORM_CONFIG = {
   WEIXIN: {
     key: 2,
     name: '视频号',
-    titleLimit: 50, // 标题字数限制
-    topicLimit: 4,   // 话题数量限制
-    titlePlaceholder: '请输入标题（最多50字）',
-    topicPlaceholder: '最多可添加4个话题'
+    titleLimit: 16, // 标题字数限制
+    topicLimit: 20,   // 话题数量限制
+    titlePlaceholder: '请输入标题（最多16字）',
+    topicPlaceholder: '最多可添加20个话题'
   },
   // 小红书
   XIAOHONGSHU: {
