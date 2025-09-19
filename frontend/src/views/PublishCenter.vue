@@ -142,7 +142,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Check, Close, InfoFilled } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAccountStore } from '@/stores/account'
 import { useAppStore } from '@/stores/app'
 import { materialApi } from '@/api/material'
@@ -427,17 +427,46 @@ const confirmPublish = async (tab) => {
   })
 }
 
+// 批量发布前置校验：每个 tab 必须至少上传一个视频且选择了账号
+const preflightBatchValidation = () => {
+  const invalids = []
+  tabs.forEach(tab => {
+    const errs = []
+    if (!tab.fileList || tab.fileList.length === 0) errs.push('未上传视频')
+    if (!tab.selectedAccounts || tab.selectedAccounts.length === 0) errs.push('未选择账号')
+    if (errs.length) invalids.push({ tab, message: `${tab.label}: ${errs.join('、')}` })
+  })
+  return invalids
+}
+
 // 批量发布方法
 const batchPublish = async () => {
   if (batchPublishing.value) return
-  
+
+  // 先做所有 Tab 的最小校验（仅检查视频与账号）
+  const invalids = preflightBatchValidation()
+  if (invalids.length > 0) {
+    // 聚合展示错误，并定位到第一个有问题的 Tab
+    activeTab.value = invalids[0].tab.name
+    invalids[0].tab.publishStatus = { message: invalids[0].message, type: 'error' }
+    try {
+      await ElMessageBox.alert(
+        invalids.map(i => i.message).join('\n'),
+        '请完善发布项后再批量发布',
+        { confirmButtonText: '好的' }
+      )
+    } catch (e) { /* 用户关闭弹窗 */ }
+    ElMessage.error('存在未准备完成的发布项：请为每个发布项上传视频并选择账号')
+    return
+  }
+
   batchPublishing.value = true
   currentPublishingTab.value = null
   publishProgress.value = 0
   publishResults.value = []
   isCancelled.value = false
   batchPublishDialogVisible.value = true
-  
+
   try {
     for (let i = 0; i < tabs.length; i++) {
       if (isCancelled.value) {
