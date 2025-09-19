@@ -56,7 +56,12 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
-                    <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
                 </el-table-column>
@@ -119,7 +124,12 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
-                    <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
                 </el-table-column>
@@ -182,7 +192,12 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
-                    <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
                 </el-table-column>
@@ -245,7 +260,12 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
-                    <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
                 </el-table-column>
@@ -308,7 +328,12 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
-                    <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
                 </el-table-column>
@@ -526,12 +551,8 @@ const handleAddAccount = () => {
   dialogVisible.value = true
 }
 
-// 编辑账号
-const handleEdit = (row) => {
-  dialogType.value = 'edit'
-  Object.assign(accountForm, { ...row })
-  dialogVisible.value = true
-}
+// 取消编辑逻辑（不再提供编辑入口）
+const handleEdit = () => {}
 
 // 删除账号
 const handleDelete = (row) => {
@@ -689,32 +710,29 @@ const submitAccountForm = () => {
         // 建立SSE连接
         connectSSE(accountForm.platform, accountForm.name)
       } else {
-        // 编辑账号逻辑
-        try {
-          const res = await accountApi.updateAccount({
-            id: accountForm.id,
-            type: Number(accountForm.platform === '快手' ? 1 : accountForm.platform === '抖音' ? 2 : accountForm.platform === '视频号' ? 3 : 4),
-            userName: accountForm.name
-          })
-          if (res.code === 200) {
-            // 更新状态管理中的账号
-            accountStore.updateAccount(accountForm.id, accountForm)
-            ElMessage.success('更新成功')
-            dialogVisible.value = false
-            // 刷新账号列表
-            fetchAccounts()
-          } else {
-            ElMessage.error(res.msg || '更新账号失败')
-          }
-        } catch (error) {
-          console.error('更新账号失败:', error)
-          ElMessage.error('更新账号失败')
-        }
+        // 关闭编辑通道
+        ElMessage.info('编辑功能已取消，请删除后重新添加')
       }
     } else {
       return false
     }
   })
+}
+
+// 异常时：重新添加相同平台相同账号
+const handleReAdd = (row) => {
+  dialogType.value = 'add'
+  // 预填平台与名称（允许用户微调）
+  Object.assign(accountForm, {
+    id: null,
+    platform: row.platform,
+    name: row.name,
+    status: '正常'
+  })
+  sseConnecting.value = false
+  qrCodeData.value = ''
+  loginStatus.value = ''
+  dialogVisible.value = true
 }
 
 // 组件卸载前关闭SSE连接
