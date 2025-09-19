@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { Check, Close, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAccountStore } from '@/stores/account'
@@ -179,6 +179,14 @@ const accountStore = useAccountStore()
 // 素材数据
 const materials = computed(() => appStore.materials)
 
+// 平台显示名映射
+const platformNames = {
+  1: '小红书',
+  2: '视频号',
+  3: '抖音',
+  4: '快手'
+}
+
 // 批量发布相关状态
 const batchPublishing = ref(false)
 // 初始化时快速获取账号列表（不触发验证）
@@ -198,7 +206,7 @@ onMounted(async () => {
 const tabs = reactive([
   {
     name: 'tab1',
-    label: '发布1',
+    label: platformNames[1],
     fileList: [], // 后端返回的文件名列表
     displayFileList: [], // 用于显示的文件列表
     selectedAccounts: [], // 选中的账号ID列表
@@ -226,7 +234,7 @@ const addTab = () => {
   tabCounter++
   const newTab = {
     name: `tab${tabCounter}`,
-    label: `发布${tabCounter}`,
+    label: platformNames[1],
     fileList: [],
     displayFileList: [],
     selectedAccounts: [],
@@ -262,6 +270,7 @@ const handlePlatformChange = (platformKey) => {
   const currentTab = tabs.find(tab => tab.name === activeTab.value)
   if (currentTab) {
     currentTab.selectedAccounts = []
+    updateTabLabel(currentTab)
   }
 }
 
@@ -348,6 +357,28 @@ const removeFile = (tab, index) => {
   
   ElMessage.success('文件删除成功')
 }
+
+// 根据平台与账号动态更新标签：平台_账号
+const updateTabLabel = (tab) => {
+  const platform = platformNames[tab.selectedPlatform]
+  const accIds = tab.selectedAccounts || []
+  if (platform && accIds.length > 0) {
+    const firstAcc = accountStore.accounts.find(acc => acc.id === accIds[0])
+    const accName = firstAcc?.name || ''
+    tab.label = accName ? `${platform}_${accName}` : `${platform}`
+  } else if (platform) {
+    tab.label = platform
+  } else {
+    // 回退到默认命名：发布N（根据当前顺序生成）
+    const idx = tabs.findIndex(t => t.name === tab.name)
+    tab.label = `发布${idx + 1}`
+  }
+}
+
+// 监听 tabs 深度变化，动态刷新每个 tab 的 label
+watch(tabs, () => {
+  tabs.forEach(updateTabLabel)
+}, { deep: true })
 
 // 取消发布
 const cancelPublish = (tab) => {
