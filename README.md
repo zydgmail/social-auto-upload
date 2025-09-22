@@ -65,7 +65,7 @@ Social Auto Upload 是一个现代化的视频自动上传工具，支持将视�
 
 3. **启动应用**
 
-   <span style="color:red;">由于python和第三方依赖包体超过100M未上传至github,请自行[下载](https://pan.quark.cn/s/1af6f5a2032d),下载完成后解压至项目根目录即可运行</span>
+   <span style="color:red;">由于python和第三方依赖包体超过100M未上传至github,请自行[下载](https://pan.quark.cn/s/cd4d9fb79187),下载完成后解压至项目根目录即可运行</span>
    ```bash
    # 双击运行
    run.bat
