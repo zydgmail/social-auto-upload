@@ -20,5 +20,10 @@ export const accountApi = {
   // 删除账号
   deleteAccount(id) {
     return http.get(`/deleteAccount?id=${id}`)
+  },
+
+  // 打开所选账号浏览器标签
+  openAccounts(ids) {
+    return http.post('/openAccounts', { ids })
   }
 }

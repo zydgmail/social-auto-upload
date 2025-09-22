@@ -59,11 +59,19 @@ async def launch_chromium_with_codecs(playwright, headless: bool = False, execut
             try:
                 if candidate.exists():
                     print(f"[launch] Using portable browser: {candidate}")
-                    return await playwright.chromium.launch(
+                    browser = await playwright.chromium.launch(
                         headless=headless,
                         executable_path=str(candidate),
                         args=launch_args,
                     )
+                    try:
+                        # Probe by opening and closing a dummy browser context
+                        context = await browser.new_context()
+                        await context.close()
+                        print(f"[launch] Portable browser ready: {candidate}")
+                    except Exception as e:
+                        print(f"[launch] Portable browser probe failed: {e}")
+                    return browser
             except Exception as e:
                 print(f"[launch] portable exec failed {candidate}: {e}")
 

@@ -12,9 +12,12 @@ from flask import Flask, request, jsonify, Response, render_template, send_from_
 from conf import BASE_DIR
 from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen
 from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_ks, post_video_xhs
+from utils.base_social_media import launch_chromium_with_codecs, set_init_script
+from playwright.async_api import async_playwright
 
 
 active_queues = {}
+_open_browsers = []  # keep references to prevent GC/auto-close
 
 # 全局账号验证缓存时间（秒），默认 3600 秒（1 小时）
 ACCOUNT_STATUS_TTL_SECONDS = int(os.getenv('ACCOUNT_STATUS_TTL_SECONDS', '3600'))
@@ -452,6 +455,85 @@ def postVideo():
             "msg": None,
             "data": None
         }), 200
+
+
+@app.route('/openAccounts', methods=['POST'])
+def open_accounts():
+    data = request.get_json() or {}
+    ids = data.get('ids', [])
+    if not isinstance(ids, list) or not ids:
+        return jsonify({
+            "code": 400,
+            "msg": "ids required",
+            "data": None
+        }), 200
+
+    # 查询账号信息
+    with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+        cursor = conn.cursor()
+        # rows: [id, type, filePath, userName, status]
+        placeholders = ",".join(["?"] * len(ids))
+        cursor.execute(f"SELECT id, type, filePath, userName, status FROM user_info WHERE id IN ({placeholders})", tuple(ids))
+        rows = cursor.fetchall()
+
+    if not rows:
+        return jsonify({
+            "code": 404,
+            "msg": "accounts not found",
+            "data": None
+        }), 200
+
+    def run_open_tabs(rows_):
+        async def open_tabs_async():
+            p = await async_playwright().start()
+            browser = await launch_chromium_with_codecs(p, headless=False, executable_path=None)
+            _open_browsers.append(browser)
+            # 平台登录后页面地址
+            url_map = {
+                1: "https://creator.xiaohongshu.com/new/note-manager",
+                2: "https://channels.weixin.qq.com/platform/post/list",
+                3: "https://creator.douyin.com/creator-micro/content/manage",
+                4: "https://cp.kuaishou.com/article/publish/video",
+            }
+            for (acc_id, acc_type, file_path, user_name, _status) in rows_:
+                try:
+                    context = await browser.new_context(storage_state=str(Path(BASE_DIR / "cookiesFile" / file_path)))
+                    context = await set_init_script(context)
+                    page = await context.new_page()
+                    url = url_map.get(acc_type) or "https://www.baidu.com"
+                    await page.goto(url, wait_until="domcontentloaded")
+                    await page.wait_for_timeout(500)
+                    # 命名标签便于识别
+                    try:
+                        await page.evaluate("document.title = document.title + ' - ' + arguments[0]", user_name)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    print(f"open tab failed id={acc_id} err={e}")
+            # 保持浏览器打开，直到进程退出（避免意外自动关闭）
+            print("[openAccounts] Tabs opened, holding browser open...")
+            try:
+                while True:
+                    await asyncio.sleep(3600)
+            finally:
+                # do not stop playwright/browsers here to allow persistence if loop ends unexpectedly
+                pass
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(open_tabs_async())
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=run_open_tabs, args=(rows,), daemon=True)
+    t.start()
+
+    return jsonify({
+        "code": 200,
+        "msg": None,
+        "data": {"opened": len(rows)}
+    }), 200
 
 
 @app.route('/updateUserinfo', methods=['POST'])

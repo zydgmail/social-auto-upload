@@ -19,15 +19,17 @@
               />
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
+                <el-button type="success" @click="handleOpenSelected" :disabled="selectedIds.length===0">作品查看</el-button>
                 <el-button type="info" @click="() => fetchAccounts(true)">
                   <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
-                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '过期验证' }}</span>
                 </el-button>
               </div>
             </div>
             
             <div v-if="filteredAccounts.length > 0" class="account-list">
-              <el-table :data="filteredAccounts" style="width: 100%">
+              <el-table :data="filteredAccounts" style="width: 100%" @selection-change="onSelectionChange">
+                <el-table-column type="selection" width="55" />
                 <el-table-column label="头像" width="80">
                   <template #default="scope">
                     <el-avatar :src="scope.row.avatar" :size="40" />
@@ -488,6 +490,26 @@ const filteredAccounts = computed(() => {
     account.name.includes(searchKeyword.value)
   )
 })
+
+// 多选
+const selectedIds = ref([])
+const onSelectionChange = (rows) => {
+  selectedIds.value = rows.map(r => r.id)
+}
+
+const handleOpenSelected = async () => {
+  if (!selectedIds.value.length) return
+  try {
+    const res = await accountApi.openAccounts(selectedIds.value)
+    if (res.code === 200) {
+      ElMessage.success(`已打开 ${res.data?.opened ?? selectedIds.value.length} 个标签页`)
+    } else {
+      ElMessage.error(res.msg || '打开失败')
+    }
+  } catch (e) {
+    ElMessage.error('打开失败')
+  }
+}
 
 // 按平台过滤的账号列表
 const filteredKuaishouAccounts = computed(() => {
