@@ -389,6 +389,9 @@ def login():
     type = request.args.get('type')
     # 账号名
     id = request.args.get('id')
+    # 是否更新已有记录
+    update_mode = request.args.get('update', '0') in ('1', 'true', 'True')
+    record_id = request.args.get('record_id')
 
     # 模拟一个用于异步通信的队列
     status_queue = Queue()
@@ -398,7 +401,7 @@ def login():
         print(f"清理队列: {id}")
         del active_queues[id]
     # 启动异步任务线程
-    thread = threading.Thread(target=run_async_function, args=(type,id,status_queue), daemon=True)
+    thread = threading.Thread(target=run_async_function, args=(type,id,status_queue, update_mode, record_id), daemon=True)
     thread.start()
     response = Response(sse_stream(status_queue,), mimetype='text/event-stream')
     response.headers['Cache-Control'] = 'no-cache'
@@ -533,29 +536,29 @@ def postVideoBatch():
         }), 200
 
 # 包装函数：在线程中运行异步函数
-def run_async_function(type,id,status_queue):
+def run_async_function(type,id,status_queue, update_mode=False, record_id=None):
     cookiesFile_dir = Path(BASE_DIR / "cookiesFile")
     cookiesFile_dir.mkdir(parents=False, exist_ok=True)
     match type:
         case '1':
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(xiaohongshu_cookie_gen(id, status_queue))
+            loop.run_until_complete(xiaohongshu_cookie_gen(id, status_queue, update_mode, record_id))
             loop.close()
         case '2':
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(get_tencent_cookie(id,status_queue))
+            loop.run_until_complete(get_tencent_cookie(id,status_queue, update_mode, record_id))
             loop.close()
         case '3':
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(douyin_cookie_gen(id,status_queue))
+            loop.run_until_complete(douyin_cookie_gen(id,status_queue, update_mode, record_id))
             loop.close()
         case '4':
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(get_ks_cookie(id,status_queue))
+            loop.run_until_complete(get_ks_cookie(id,status_queue, update_mode, record_id))
             loop.close()
 
 # SSE 流生成器函数

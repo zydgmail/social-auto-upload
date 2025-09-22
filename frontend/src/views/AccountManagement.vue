@@ -602,7 +602,7 @@ const closeSSEConnection = () => {
 }
 
 // 建立SSE连接
-const connectSSE = (platform, name) => {
+const connectSSE = (platform, userName, recordId = null) => {
   // 关闭可能存在的连接
   closeSSEConnection()
   
@@ -623,7 +623,12 @@ const connectSSE = (platform, name) => {
   
   // 创建SSE连接
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
-  const url = `${baseUrl}/login?type=${type}&id=${encodeURIComponent(name)}`
+  const params = new URLSearchParams({ type, id: userName })
+  if (recordId) {
+    params.append('update', '1')
+    params.append('record_id', String(recordId))
+  }
+  const url = `${baseUrl}/login?${params.toString()}`
   
   eventSource = new EventSource(url)
   
@@ -662,7 +667,7 @@ const connectSSE = (platform, name) => {
           setTimeout(() => {
             dialogVisible.value = false
             sseConnecting.value = false
-            ElMessage.success('账号添加成功')
+            ElMessage.success(recordId ? '账号更新成功' : '账号添加成功')
             
             // 显示更新账号信息提示
             ElMessage({
@@ -708,7 +713,7 @@ const submitAccountForm = () => {
     if (valid) {
       if (dialogType.value === 'add') {
         // 建立SSE连接
-        connectSSE(accountForm.platform, accountForm.name)
+        connectSSE(accountForm.platform, accountForm.name, accountForm.id)
       } else {
         // 关闭编辑通道
         ElMessage.info('编辑功能已取消，请删除后重新添加')
@@ -724,7 +729,7 @@ const handleReAdd = (row) => {
   dialogType.value = 'add'
   // 预填平台与名称（允许用户微调）
   Object.assign(accountForm, {
-    id: null,
+    id: row.id,
     platform: row.platform,
     name: row.name,
     status: '正常'

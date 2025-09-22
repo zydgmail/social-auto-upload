@@ -10,7 +10,7 @@ from pathlib import Path
 from conf import BASE_DIR
 
 # 抖音登录
-async def douyin_cookie_gen(id,status_queue):
+async def douyin_cookie_gen(id,status_queue, update_mode=False, record_id=None):
     url_changed_event = asyncio.Event()
     async def on_url_change():
         # 检查是否是主框架的变化
@@ -66,17 +66,22 @@ async def douyin_cookie_gen(id,status_queue):
         await browser.close()
         with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                                INSERT INTO user_info (type, filePath, userName, status)
-                                VALUES (?, ?, ?, ?)
-                                ''', (3, f"{uuid_v1}.json", id, 1))
+            if update_mode and record_id:
+                cursor.execute('''
+                    UPDATE user_info SET type = ?, filePath = ?, userName = ?, status = ? WHERE id = ?
+                ''', (3, f"{uuid_v1}.json", id, 1, int(record_id)))
+            else:
+                cursor.execute('''
+                                    INSERT INTO user_info (type, filePath, userName, status)
+                                    VALUES (?, ?, ?, ?)
+                                    ''', (3, f"{uuid_v1}.json", id, 1))
             conn.commit()
             print("✅ 用户状态已记录")
         status_queue.put("200")
 
 
 # 视频号登录
-async def get_tencent_cookie(id,status_queue):
+async def get_tencent_cookie(id,status_queue, update_mode=False, record_id=None):
     url_changed_event = asyncio.Event()
     async def on_url_change():
         # 检查是否是主框架的变化
@@ -145,7 +150,12 @@ async def get_tencent_cookie(id,status_queue):
 
         with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            if update_mode and record_id:
+                cursor.execute('''
+                    UPDATE user_info SET type = ?, filePath = ?, userName = ?, status = ? WHERE id = ?
+                ''', (2, f"{uuid_v1}.json", id, 1, int(record_id)))
+            else:
+                cursor.execute('''
                                 INSERT INTO user_info (type, filePath, userName, status)
                                 VALUES (?, ?, ?, ?)
                                 ''', (2, f"{uuid_v1}.json", id, 1))
@@ -154,7 +164,7 @@ async def get_tencent_cookie(id,status_queue):
         status_queue.put("200")
 
 # 快手登录
-async def get_ks_cookie(id,status_queue):
+async def get_ks_cookie(id,status_queue, update_mode=False, record_id=None):
     url_changed_event = asyncio.Event()
     async def on_url_change():
         # 检查是否是主框架的变化
@@ -219,7 +229,12 @@ async def get_ks_cookie(id,status_queue):
 
         with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            if update_mode and record_id:
+                cursor.execute('''
+                    UPDATE user_info SET type = ?, filePath = ?, userName = ?, status = ? WHERE id = ?
+                ''', (4, f"{uuid_v1}.json", id, 1, int(record_id)))
+            else:
+                cursor.execute('''
                                         INSERT INTO user_info (type, filePath, userName, status)
                                         VALUES (?, ?, ?, ?)
                                         ''', (4, f"{uuid_v1}.json", id, 1))
@@ -228,7 +243,7 @@ async def get_ks_cookie(id,status_queue):
         status_queue.put("200")
 
 # 小红书登录
-async def xiaohongshu_cookie_gen(id,status_queue):
+async def xiaohongshu_cookie_gen(id,status_queue, update_mode=False, record_id=None):
     url_changed_event = asyncio.Event()
 
     async def on_url_change():
@@ -293,7 +308,12 @@ async def xiaohongshu_cookie_gen(id,status_queue):
 
         with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            if update_mode and record_id:
+                cursor.execute('''
+                    UPDATE user_info SET type = ?, filePath = ?, userName = ?, status = ? WHERE id = ?
+                ''', (1, f"{uuid_v1}.json", id, 1, int(record_id)))
+            else:
+                cursor.execute('''
                            INSERT INTO user_info (type, filePath, userName, status)
                            VALUES (?, ?, ?, ?)
                            ''', (1, f"{uuid_v1}.json", id, 1))
