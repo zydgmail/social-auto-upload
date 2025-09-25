@@ -229,6 +229,7 @@ async def getValidAccounts():
     可选参数：
       - validate: 1/true 表示触发校验；0/false 表示仅返回数据库缓存状态（更快）。默认 0。
       - force: 1/true 表示忽略 TTL 强制校验。
+      - ids: 可选，逗号分隔的账号 id 列表。提供时，仅对这些账号执行校验，其余账号保留缓存状态。
     说明：
       - 为避免频繁打开浏览器验证，增加了 TTL，默认 1 小时内重复请求不会再次校验。
     """
@@ -236,6 +237,13 @@ async def getValidAccounts():
 
     validate = request.args.get('validate', '0').lower() in ('1', 'true', 'yes')
     force = request.args.get('force', '0').lower() in ('1', 'true', 'yes')
+    ids_param = request.args.get('ids', '').strip()
+    selected_ids = set()
+    if ids_param:
+        try:
+            selected_ids = {int(x) for x in ids_param.split(',') if x.strip().isdigit()}
+        except Exception:
+            selected_ids = set()
 
     now_ts = time.time()
     should_validate = validate and (force or (now_ts - _last_accounts_validation_ts >= ACCOUNT_STATUS_TTL_SECONDS))
@@ -260,6 +268,9 @@ async def getValidAccounts():
         for row in rows_list:
             # row: [id, type, filePath, userName, status]
             try:
+                # 若指定了 selected_ids，则只校验被选中的账号，其余账号跳过
+                if selected_ids and row[0] not in selected_ids:
+                    continue
                 # 预览模式：当请求带 preview=1 时打开可视化浏览器以便观察
                 preview = request.args.get('preview', '0').lower() in ('1', 'true', 'yes')
                 platform = {1: 'xhs', 2: 'tencent', 3: 'douyin', 4: 'kuaishou'}.get(row[1], 'unknown')

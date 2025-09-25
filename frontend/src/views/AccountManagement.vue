@@ -20,7 +20,7 @@
               <div class="action-buttons">
                 <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
                 <el-button type="success" @click="handleOpenSelected" :disabled="selectedIds.length===0">作品查看</el-button>
-                <el-button type="info" @click="() => fetchAccounts(true)">
+                <el-button type="info" @click="() => fetchAccounts(true, selectedIds)">
                   <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
                   <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '过期验证' }}</span>
                 </el-button>
@@ -507,13 +507,17 @@ const activeTab = ref('all')
 const searchKeyword = ref('')
 
 // 获取账号数据
-const fetchAccounts = async (validate = false) => {
+const fetchAccounts = async (validate = false, ids = []) => {
   if (appStore.isAccountRefreshing) return
   
   appStore.setAccountRefreshing(true)
   
   try {
-    const res = await accountApi.getValidAccounts({ validate: validate ? 1 : 0 })
+    const params = { validate: validate ? 1 : 0 }
+    if (validate && Array.isArray(ids) && ids.length > 0) {
+      params.ids = ids.join(',')
+    }
+    const res = await accountApi.getValidAccounts(params)
     if (res.code === 200 && res.data) {
       accountStore.setAccounts(res.data)
       if (validate) {
