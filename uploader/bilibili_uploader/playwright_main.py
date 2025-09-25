@@ -85,43 +85,53 @@ class BilibiliVideo:
     async def _fill_desc(self, page) -> None:
         if not self.desc:
             return
-        # B站简介可能是富文本编辑器或其他特殊组件，探测结果显示没有textarea
-        candidates = [
+        
+        bilibili_logger.info(f"[bilibili] 正在填写简介: {self.desc[:50]}...")
+        
+        # 基于实际B站页面的Quill编辑器结构
+        desc_selectors = [
+            '.ql-editor[contenteditable="true"]',  # 精确匹配Quill编辑器
             '.ql-editor',  # Quill富文本编辑器
-            '[contenteditable="true"]',  # 可编辑div
-            'div[role="textbox"]',  # 文本框角色
-            'textarea[placeholder*="简介"]',  # 传统textarea（备用）
-            'textarea[aria-label*="简介"]',  # 无障碍标签
-            'textarea',  # 回退选择器
+            '[contenteditable="true"][data-placeholder*="简介"]',  # 有简介placeholder的可编辑元素
+            '[contenteditable="true"]',  # 通用可编辑div
         ]
-        for selector in candidates:
+        
+        for selector in desc_selectors:
             try:
                 if await page.locator(selector).first.count():
+                    bilibili_logger.info(f"[bilibili] 找到简介输入框: {selector}")
+                    
+                    # 滚动到元素可见位置
                     try:
                         await page.locator(selector).first.scroll_into_view_if_needed()
                     except Exception:
                         pass
                     
-                    # 对于富文本编辑器，可能需要点击激活
-                    try:
-                        await page.locator(selector).first.click()
-                        await page.wait_for_timeout(200)
-                    except Exception:
-                        pass
+                    # 点击激活编辑器
+                    await page.locator(selector).first.click()
+                    await page.wait_for_timeout(300)
                     
-                    # 尝试填充内容
+                    # 清空现有内容
+                    await page.locator(selector).first.press('Ctrl+A')
+                    await page.wait_for_timeout(100)
+                    
+                    # 对于Quill编辑器，使用innerHTML设置内容更可靠
                     try:
-                        await page.locator(selector).first.fill(self.desc[:2000])
+                        # 转义HTML特殊字符
+                        escaped_desc = self.desc[:2000].replace("'", "\\'").replace('"', '\\"').replace('\n', '<br>')
+                        await page.locator(selector).first.evaluate(f"el => el.innerHTML = '<p>{escaped_desc}</p>'")
+                        bilibili_logger.info("[bilibili] 简介填写成功（innerHTML方式）")
+                        return
                     except Exception:
-                        # 对于 contenteditable 元素，可能需要使用 innerHTML
-                        try:
-                            await page.locator(selector).first.evaluate(f"el => el.innerHTML = '{self.desc[:2000]}'")
-                        except Exception:
-                            # 最后尝试输入
-                            await page.locator(selector).first.type(self.desc[:2000])
-                    return
-            except Exception:
+                        # 备用：直接输入文本
+                        await page.locator(selector).first.type(self.desc[:2000], delay=30)
+                        bilibili_logger.info("[bilibili] 简介填写成功（输入方式）")
+                        return
+            except Exception as e:
+                bilibili_logger.warning(f"[bilibili] 简介选择器 {selector} 失败: {e}")
                 continue
+        
+        bilibili_logger.warning("[bilibili] 未能找到简介输入框")
 
     async def _set_type(self, page) -> None:
         # 基于实际B站页面的类型选择（自制/转载）
@@ -134,8 +144,6 @@ class BilibiliVideo:
                 f'text="{self.bili_type}"',  # 精确文本匹配
                 f'label:has-text("{self.bili_type}")',  # label元素
                 f'span:has-text("{self.bili_type}")',  # span元素
-                f'div:has-text("{self.bili_type}")',  # div元素
-                f'[data-value="{self.bili_type}"]',  # data属性
             ]
             
             for selector in type_selectors:
@@ -160,55 +168,65 @@ class BilibiliVideo:
         try:
             bilibili_logger.info(f"[bilibili] 正在选择分区: {self.partition}")
             
-            # 1. 首先尝试找到分区选择器并打开下拉菜单
-            partition_openers = [
-                'div:has-text("分区") select',  # 传统select
-                'div:has-text("分区") .ant-select',  # Ant Design选择器
-                'div:has-text("分区") .semi-select',  # Semi Design选择器
-                'div:has-text("分区") [class*="select"]',  # 通用选择器
-                'div:has-text("分区") + div',  # 分区标签后的元素
-                '[aria-label*="分区"]',  # 无障碍标签
+            # 1. 基于实际HTML结构，找到分区选择器控制器并点击打开下拉菜单
+            partition_controller_selectors = [
+                '.select-controller',  # 精确匹配分区控制器
+                'div[class*="select-controller"]',  # 包含select-controller的类
+                '.select-item-cont-inserted',  # 分区内容容器
             ]
             
             dropdown_opened = False
-            for opener_sel in partition_openers:
+            for controller_sel in partition_controller_selectors:
                 try:
-                    if await page.locator(opener_sel).first.count():
-                        await page.locator(opener_sel).first.scroll_into_view_if_needed()
-                        await page.locator(opener_sel).first.click()
-                        await page.wait_for_timeout(500)  # 等待下拉菜单展开
-                        dropdown_opened = True
-                        bilibili_logger.info(f"[bilibili] 成功打开分区选择器: {opener_sel}")
-                        break
-                except Exception:
+                    if await page.locator(controller_sel).count():
+                        bilibili_logger.info(f"[bilibili] 找到分区控制器: {controller_sel}")
+                        await page.locator(controller_sel).first.scroll_into_view_if_needed()
+                        await page.locator(controller_sel).first.click()
+                        await page.wait_for_timeout(800)  # 等待下拉菜单展开
+                        
+                        # 验证下拉菜单是否已打开
+                        if await page.locator('.drop-list-v2-container').count():
+                            dropdown_opened = True
+                            bilibili_logger.info("[bilibili] 分区下拉菜单已打开")
+                            break
+                except Exception as e:
+                    bilibili_logger.warning(f"[bilibili] 分区控制器 {controller_sel} 点击失败: {e}")
                     continue
             
             if not dropdown_opened:
-                bilibili_logger.warning("[bilibili] 未能打开分区选择器")
+                bilibili_logger.warning("[bilibili] 未能打开分区下拉菜单")
                 return
             
-            # 2. 尝试选择具体的分区选项
-            partition_selectors = [
-                f'option:has-text("{self.partition}")',  # select option
-                f'div[role="option"]:has-text("{self.partition}")',  # 下拉选项
-                f'li:has-text("{self.partition}")',  # 列表项
-                f'span:has-text("{self.partition}")',  # span文本
-                f'div:has-text("{self.partition}")',  # div文本
-                f'[title="{self.partition}"]',  # title属性
-                f'[data-value*="{self.partition}"]',  # data属性
-                f'text={self.partition}',  # 原始文本选择器
+            # 2. 在下拉菜单中查找并选择指定分区
+            # 基于实际HTML结构的精确选择器
+            partition_option_selectors = [
+                f'.drop-list-v2-item[title="{self.partition}"]',  # 使用title属性精确匹配
+                f'.drop-list-v2-item:has(.item-cont-main:text-is("{self.partition}"))',  # 匹配主要内容文本
+                f'.item-cont-main:text-is("{self.partition}")',  # 直接匹配分区名称
+                f'.drop-list-v2-item-cont:has-text("{self.partition}")',  # 匹配内容容器
             ]
             
-            for selector in partition_selectors:
+            option_selected = False
+            for option_sel in partition_option_selectors:
                 try:
-                    if await page.locator(selector).first.count():
-                        await page.locator(selector).first.click()
+                    if await page.locator(option_sel).count():
+                        bilibili_logger.info(f"[bilibili] 找到分区选项: {option_sel}")
+                        await page.locator(option_sel).first.click()
+                        await page.wait_for_timeout(500)  # 等待选择完成
+                        option_selected = True
                         bilibili_logger.info(f"[bilibili] 成功选择分区: {self.partition}")
-                        return
-                except Exception:
+                        break
+                except Exception as e:
+                    bilibili_logger.warning(f"[bilibili] 分区选项 {option_sel} 点击失败: {e}")
                     continue
             
-            bilibili_logger.warning(f"[bilibili] 未能找到分区选项: {self.partition}")
+            if not option_selected:
+                bilibili_logger.warning(f"[bilibili] 未能找到分区选项: {self.partition}")
+                # 尝试点击页面其他位置关闭下拉菜单
+                try:
+                    await page.click('body', timeout=1000)
+                except Exception:
+                    pass
             
         except Exception as e:
             bilibili_logger.warning(f"[bilibili] 分区选择失败: {e}")
@@ -280,29 +298,30 @@ class BilibiliVideo:
         # 基于实际B站页面的发布按钮选择器
         bilibili_logger.info("[bilibili] 正在寻找发布按钮...")
         
+        # 基于实际HTML结构，发布按钮是span元素
         publish_selectors = [
-            'button:has-text("立即投稿")',  # B站标准发布按钮
-            'button:has-text("投稿")',  # 简化版本
-            'button:has-text("发布")',  # 通用发布
-            'button:has-text("提交")',  # 提交按钮
-            'button[class*="submit"]',  # 提交类名
-            'button[class*="publish"]',  # 发布类名
-            '.submit-btn',  # 提交按钮类
-            '.publish-btn',  # 发布按钮类
+            'span.submit-add:has-text("立即投稿")',  # 精确匹配实际结构
+            '.submit-add:has-text("立即投稿")',  # 类名匹配
+            'span:has-text("立即投稿")',  # span元素匹配
         ]
         
         for selector in publish_selectors:
             try:
-                if await page.locator(selector).first.count():
+                if await page.locator(selector).count():
+                    bilibili_logger.info(f"[bilibili] 找到发布按钮: {selector}")
                     await page.locator(selector).first.scroll_into_view_if_needed()
+                    await page.wait_for_timeout(500)  # 等待元素稳定
                     await page.locator(selector).first.click()
                     bilibili_logger.info(f"[bilibili] 成功点击发布按钮: {selector}")
+                    
+                    # 等待一下看是否有提交反应
+                    await page.wait_for_timeout(1000)
                     return
             except Exception as e:
-                bilibili_logger.debug(f"[bilibili] 发布按钮选择器失败 {selector}: {e}")
+                bilibili_logger.warning(f"[bilibili] 发布按钮选择器失败 {selector}: {e}")
                 continue
         
-        bilibili_logger.warning("[bilibili] 未找到任何发布按钮")
+        bilibili_logger.error("[bilibili] 未找到任何发布按钮")
 
     async def upload(self, playwright: Playwright) -> None:
         browser = await launch_chromium_with_codecs(
@@ -336,108 +355,8 @@ class BilibiliVideo:
 
         bilibili_logger.info("[bilibili] wait page ready")
         
-        # 首先等待micro-app微前端应用加载完成
-        try:
-            # 等待micro-app元素出现
-            await page.wait_for_selector('micro-app[name="video-up"]', timeout=15000)
-            bilibili_logger.info("[bilibili] micro-app detected")
-            
-            # 等待微应用内容加载
-            await page.wait_for_selector('#video-up-app', timeout=10000)
-            bilibili_logger.info("[bilibili] video-up-app loaded")
-            
-            # 等待上传区域完全加载
-            await page.wait_for_selector('.bcc-upload-wrapper', timeout=10000)
-            bilibili_logger.info("[bilibili] upload wrapper loaded")
-            
-        except Exception as e:
-            bilibili_logger.warning(f"[bilibili] micro-app loading failed: {e}")
+        await page.locator('input[type="file"]').set_input_files(self.file_path) # 上传视频
         
-        # 等待核心上传元素就绪
-        ready = False
-        for attempt in range(40):  # 增加等待时间，最多等待约20秒
-            try:
-                # 检查多种可能的上传input（基于实际页面分析）
-                upload_selectors = [
-                    'input[type="file"][accept*=".mp4"]',  # 视频上传
-                    '.bcc-upload-wrapper input[type="file"]',  # B站上传组件
-                    'input[name="buploader"]',  # B站动态生成的上传器
-                    'input[type="file"][multiple]',  # 多文件上传
-                ]
-                
-                for selector in upload_selectors:
-                    if await page.locator(selector).count():
-                        bilibili_logger.info(f"[bilibili] upload input found: {selector}")
-                        ready = True
-                        break
-                        
-                if ready:
-                    break
-                    
-                # 检查是否有标题输入框作为备用判断（说明已进入编辑页面）
-                for sel in (
-                    'input[placeholder*="标题"]',
-                    'input[placeholder="请输入稿件标题"]',
-                    'input[maxlength="80"]',
-                ):
-                    if await page.locator(sel).count():
-                        bilibili_logger.info(f"[bilibili] title input found: {sel}")
-                        ready = True
-                        break
-                        
-                if ready:
-                    break
-                    
-            except Exception as e:
-                bilibili_logger.debug(f"[bilibili] waiting attempt {attempt + 1}: {e}")
-                
-            await page.wait_for_timeout(500)
-        
-        if not ready:
-            bilibili_logger.error("[bilibili] page readiness check failed")
-        else:
-            bilibili_logger.info("[bilibili] page ready confirmed")
-
-        bilibili_logger.info("[bilibili] locate upload input")
-        # 基于chrome-mcp实际页面分析的文件上传选择器
-        file_inputs = [
-            '.bcc-upload-wrapper input[type="file"]',  # B站上传组件内的input
-            'input[name="buploader"]',  # B站动态生成的上传器（不限制accept）
-            'input[type="file"][accept*=".mp4"]',  # 视频文件上传
-            'input[type="file"][multiple]',  # 多文件上传
-            'div[id*="b-uploader-input-container"] input[type="file"]',  # B站上传容器
-            'div[class*="upload"] input[type="file"]',  # 通用上传容器
-            'input[type="file"]',  # 最后的回退选择器
-        ]
-        uploaded = False
-        for selector in file_inputs:
-            try:
-                if await page.locator(selector).first.count():
-                    try:
-                        await page.locator(selector).first.scroll_into_view_if_needed()
-                    except Exception:
-                        pass
-                    await page.locator(selector).first.set_input_files(self.file_path)
-                    uploaded = True
-                    break
-            except Exception:
-                continue
-        if not uploaded:
-            # 尝试检测是否在登录页，给出更明确错误
-            login_indicators = [
-                'a:has-text("登录")',
-                'button:has-text("登录")',
-                'iframe[src*="passport"]',
-            ]
-            for sel in login_indicators:
-                try:
-                    if await page.locator(sel).count():
-                        raise RuntimeError("bilibili cookie invalid; please re-login")
-                except Exception:
-                    continue
-            raise RuntimeError("bilibili upload input not found")
-
-        bilibili_logger.info("[bilibili] upload triggered; fill title/tags/desc/type/partition/schedule")
         await asyncio.sleep(1)
         await self._fill_title(page)
         await self._fill_tags(page)
@@ -450,16 +369,16 @@ class BilibiliVideo:
         # 等待上传完成或稳定
         await self._wait_upload_complete(page)
 
-        # 发布时间暂不支持（B站可能需要更复杂表单/资质）
+        # 等待300秒再发布（用户观察和确认）
+        bilibili_logger.info("[bilibili] waiting 300 seconds before publish...")
+        await asyncio.sleep(300)
+        
+        # 发布
         bilibili_logger.info("[bilibili] click publish")
         await self._click_publish(page)
 
         # 保存cookie
         await context.storage_state(path=str(self.account_file))
-
-        # 调试阶段：不关闭浏览器
-        bilibili_logger.info("[bilibili] keep browser open for debug")
-        OPEN_DEBUG_BROWSERS.append(browser)
 
     async def main(self) -> None:
         from playwright.async_api import async_playwright
