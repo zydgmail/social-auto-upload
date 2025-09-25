@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from datetime import datetime
+from datetime import datetime, time as _time
 from pathlib import Path
 
 from conf import BASE_DIR
@@ -62,6 +62,25 @@ def generate_schedule_time_next_day(total_videos, videos_per_day = 1, daily_time
     if videos_per_day > len(daily_times):
         raise ValueError("videos_per_day should not exceed the length of daily_times")
 
+    # Normalize daily_times into (hour, minute) tuples
+    def _parse_time_slot(slot):
+        """Accepts int hour, 'HH:mm' string, or datetime.time; returns (hour, minute)."""
+        if isinstance(slot, int):
+            return slot, 0
+        if isinstance(slot, str):
+            s = slot.strip()
+            # Support 'HH:mm' or 'H:mm'
+            if ':' in s:
+                hh, mm = s.split(':', 1)
+                return int(hh), int(mm)
+            # Pure hour string
+            return int(s), 0
+        if isinstance(slot, _time):
+            return slot.hour, slot.minute
+        raise TypeError(f"Unsupported daily_times element: {slot} ({type(slot)})")
+
+    normalized_times = [ _parse_time_slot(t) for t in daily_times ]
+
     # Generate timestamps
     schedule = []
     current_time = datetime.now()
@@ -70,11 +89,18 @@ def generate_schedule_time_next_day(total_videos, videos_per_day = 1, daily_time
         day = video // videos_per_day + start_days + 1  # +1 to start from the next day
         daily_video_index = video % videos_per_day
 
-        # Calculate the time for the current video
-        hour = daily_times[daily_video_index]
-        time_offset = timedelta(days=day, hours=hour - current_time.hour, minutes=-current_time.minute,
-                                seconds=-current_time.second, microseconds=-current_time.microsecond)
-        timestamp = current_time + time_offset
+        # Calculate the time for the current video using normalized (hour, minute)
+        hour, minute = normalized_times[daily_video_index]
+        target_date = (current_time + timedelta(days=day)).date()
+        timestamp = datetime(
+            year=target_date.year,
+            month=target_date.month,
+            day=target_date.day,
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        )
 
         schedule.append(timestamp)
 
