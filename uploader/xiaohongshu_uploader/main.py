@@ -184,6 +184,7 @@ class XiaoHongShuVideo(object):
         for _, tag in enumerate(self.tags, start=1):
             await page.type(css_selector, "#" + tag)
             await page.keyboard.press("Enter")
+            await asyncio.sleep(0.5)
         xiaohongshu_logger.info(f'总共添加{len(self.tags)}个话题')
 
         if self.publish_date != 0:
