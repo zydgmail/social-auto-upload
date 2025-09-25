@@ -81,25 +81,13 @@
           </div>
         </el-form-item>
 
-        <!-- 标签输入 -->
-        <el-form-item label="标签" required>
-          <el-select
-            v-model="topics"
-            multiple
-            filterable
-            allow-create
-            placeholder="输入标签并按回车添加，最多10个标签"
-            style="width: 100%"
-            :max-collapse-tags="3"
-            collapse-tags
-            collapse-tags-tooltip
-          >
-            <!-- 预设标签可以为空，允许用户自定义 -->
-          </el-select>
-          <div class="field-tips">
-            <el-text size="small" type="info">标签有助于更多用户发现你的视频，最多添加10个</el-text>
-          </div>
-        </el-form-item>
+                   <!-- 标签输入 -->
+                   <el-form-item label="标签" required>
+                     <BiliTagInput
+                       v-model="topics"
+                       @validation-change="(validation) => $emit('validation-change', 'topics', validation)"
+                     />
+                   </el-form-item>
 
         <!-- 简介输入 -->
         <el-form-item label="简介">
@@ -150,6 +138,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import BiliTagInput from './BiliTagInput.vue'
 
 // 定义模型
 const title = defineModel('title', { type: String, default: '' })
