@@ -323,3 +323,76 @@ async def xiaohongshu_cookie_gen(id,status_queue, update_mode=False, record_id=N
 
 # a = asyncio.run(xiaohongshu_cookie_gen(4,None))
 # print(a)
+
+# B站登录
+async def bilibili_cookie_gen(id, status_queue, update_mode=False, record_id=None):
+    url_changed_event = asyncio.Event()
+
+    async def on_url_change():
+        if page.url != original_url:
+            url_changed_event.set()
+
+    async with async_playwright() as playwright:
+        options = {
+            'headless': False
+        }
+        browser = await playwright.chromium.launch(
+            **options,
+            executable_path=str(BASE_DIR / "third_party" / "playwright" / "ms-playwright" / "chromium-1169" / "chrome-win" / "chrome.exe")
+        )
+        context = await browser.new_context()
+        context = await set_init_script(context)
+        page = await context.new_page()
+        await page.goto("https://member.bilibili.com/platform/upload/video/frame")
+        original_url = page.url
+
+        # 尝试抓取二维码
+        try:
+            img_locator = page.locator('img[src*="qrcode"]').first
+            if await img_locator.count() == 0:
+                img_locator = page.locator('img').first
+            src = await img_locator.get_attribute("src")
+            if src:
+                status_queue.put(src)
+        except Exception:
+            pass
+
+        page.on('framenavigated',
+                lambda frame: asyncio.create_task(on_url_change()) if frame == page.main_frame else None)
+        try:
+            await asyncio.wait_for(url_changed_event.wait(), timeout=200)
+        except asyncio.TimeoutError:
+            status_queue.put("500")
+            await page.close()
+            await context.close()
+            await browser.close()
+            return None
+
+        uuid_v1 = uuid.uuid1()
+        await context.storage_state(path=Path(BASE_DIR / "cookiesFile" / f"{uuid_v1}.json"))
+        result = await check_cookie(5, f"{uuid_v1}.json")
+        if not result:
+            status_queue.put("500")
+            await page.close()
+            await context.close()
+            await browser.close()
+            return None
+
+        await page.close()
+        await context.close()
+        await browser.close()
+
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            cursor = conn.cursor()
+            if update_mode and record_id:
+                cursor.execute('''
+                    UPDATE user_info SET type = ?, filePath = ?, userName = ?, status = ? WHERE id = ?
+                ''', (5, f"{uuid_v1}.json", id, 1, int(record_id)))
+            else:
+                cursor.execute('''
+                                    INSERT INTO user_info (type, filePath, userName, status)
+                                    VALUES (?, ?, ?, ?)
+                                    ''', (5, f"{uuid_v1}.json", id, 1))
+            conn.commit()
+            print("✅ 用户状态已记录")
+        status_queue.put("200")

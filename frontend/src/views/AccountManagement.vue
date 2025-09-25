@@ -347,6 +347,74 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane label="B站" name="bilibili">
+          <div class="account-list-container">
+            <div class="account-search">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="输入名称或账号搜索"
+                prefix-icon="Search"
+                clearable
+                @clear="handleSearch"
+                @input="handleSearch"
+              />
+              <div class="action-buttons">
+                <el-button type="primary" @click="handleAddAccount">添加账号</el-button>
+                <el-button type="info" @click="() => fetchAccounts(true)">
+                  <el-icon :class="{ 'is-loading': appStore.isAccountRefreshing, 'refresh-icon': true }"><Refresh /></el-icon>
+                  <span class="refresh-text">{{ appStore.isAccountRefreshing ? '验证中...' : '手动过期验证' }}</span>
+                </el-button>
+              </div>
+            </div>
+
+            <div v-if="filteredBilibiliAccounts.length > 0" class="account-list">
+              <el-table :data="filteredBilibiliAccounts" style="width: 100%">
+                <el-table-column label="头像" width="80">
+                  <template #default="scope">
+                    <el-avatar :src="scope.row.avatar" :size="40" />
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" label="名称" width="180" />
+                <el-table-column prop="platform" label="平台">
+                  <template #default="scope">
+                    <el-tag
+                      :type="getPlatformTagType(scope.row.platform)"
+                      effect="plain"
+                    >
+                      {{ scope.row.platform }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态">
+                  <template #default="scope">
+                    <el-tag
+                      :type="scope.row.status === '正常' ? 'success' : 'danger'"
+                      effect="plain"
+                    >
+                      {{ scope.row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                  <template #default="scope">
+                    <el-button
+                      v-if="scope.row.status !== '正常'"
+                      size="small"
+                      type="warning"
+                      @click="handleReAdd(scope.row)"
+                    >重新添加</el-button>
+                    <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <div v-else class="empty-data">
+              <el-empty description="暂无B站账号数据" />
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </div>
     
@@ -371,6 +439,7 @@
             <el-option label="抖音" value="抖音" />
             <el-option label="视频号" value="视频号" />
             <el-option label="小红书" value="小红书" />
+            <el-option label="B站" value="B站" />
           </el-select>
         </el-form-item>
         <el-form-item label="名称" prop="name">
@@ -528,6 +597,10 @@ const filteredXiaohongshuAccounts = computed(() => {
   return filteredAccounts.value.filter(account => account.platform === '小红书')
 })
 
+  const filteredBilibiliAccounts = computed(() => {
+    return filteredAccounts.value.filter(account => account.platform === 'B站')
+  })
+
 // 搜索处理
 const handleSearch = () => {
   // 搜索逻辑已通过计算属性实现
@@ -638,7 +711,8 @@ const connectSSE = (platform, userName, recordId = null) => {
     '小红书': '1',
     '视频号': '2',
     '抖音': '3',
-    '快手': '4'
+    '快手': '4',
+    'B站': '5'
   }
   
   const type = platformTypeMap[platform] || '1'

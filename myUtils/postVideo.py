@@ -6,6 +6,7 @@ from uploader.douyin_uploader.main import DouYinVideo
 from uploader.ks_uploader.main import KSVideo
 from uploader.tencent_uploader.main import TencentVideo
 from uploader.xiaohongshu_uploader.main import XiaoHongShuVideo
+from uploader.bilibili_uploader.playwright_main import BilibiliVideo
 from utils.constant import TencentZoneTypes
 from utils.files_times import generate_schedule_time_next_day
 
@@ -82,6 +83,24 @@ def post_video_xhs(title,files,tags,account_file,category=TencentZoneTypes.LIFES
             print(f"标题：{title}")
             print(f"Hashtag：{tags}")
             app = XiaoHongShuVideo(title, file, tags, publish_datetimes, cookie)
+            asyncio.run(app.main(), debug=False)
+
+
+def post_video_bilibili(title, files, tags, account_file, category=None, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0,
+                        desc: str | None = None, bili_type: str | None = None, bili_partition: str | None = None):
+    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
+    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+    if enableTimer:
+        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times, start_days)
+    else:
+        publish_datetimes = [0 for _ in range(len(files))]
+    for index, file in enumerate(files):
+        for cookie in account_file:
+            print(f"文件路径{str(file)}")
+            print(f"标题：{title}")
+            print(f"Hashtag：{tags}")
+            app = BilibiliVideo(title, str(file), tags, publish_datetimes[index], cookie,
+                                desc=desc, bili_type=bili_type, partition=bili_partition)
             asyncio.run(app.main(), debug=False)
 
 

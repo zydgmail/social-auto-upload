@@ -10,8 +10,9 @@ from flask_cors import CORS
 from myUtils.auth import check_cookie
 from flask import Flask, request, jsonify, Response, render_template, send_from_directory
 from conf import BASE_DIR
-from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen
+from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen, bilibili_cookie_gen
 from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_ks, post_video_xhs
+from myUtils.postVideo import post_video_bilibili
 from utils.base_social_media import launch_chromium_with_codecs, set_init_script
 from playwright.async_api import async_playwright
 
@@ -426,6 +427,10 @@ def postVideo():
     tags = data.get('tags')
     category = data.get('category')
     enableTimer = data.get('enableTimer')
+    # B站专用字段
+    bili_desc = data.get('biliDesc')
+    bili_type = data.get('biliType')  # 自制/转载
+    bili_partition = data.get('biliPartition')
     if category == 0:
         category = None
 
@@ -448,6 +453,9 @@ def postVideo():
         case 4:
             post_video_ks(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
                       start_days)
+        case 5:
+            post_video_bilibili(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
+                      start_days, desc=bili_desc, bili_type=bili_type, bili_partition=bili_partition)
     # 返回响应给客户端
     return jsonify(
         {
@@ -494,6 +502,7 @@ def open_accounts():
                 2: "https://channels.weixin.qq.com/platform/post/list",
                 3: "https://creator.douyin.com/creator-micro/content/manage",
                 4: "https://cp.kuaishou.com/article/publish/video",
+                5: "https://member.bilibili.com/platform/upload-manager/article",
             }
             for (acc_id, acc_type, file_path, user_name, _status) in rows_:
                 try:
@@ -641,6 +650,11 @@ def run_async_function(type,id,status_queue, update_mode=False, record_id=None):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(get_ks_cookie(id,status_queue, update_mode, record_id))
+            loop.close()
+        case '5':
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(bilibili_cookie_gen(id,status_queue, update_mode, record_id))
             loop.close()
 
 # SSE 流生成器函数

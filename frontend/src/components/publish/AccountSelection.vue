@@ -92,7 +92,8 @@ const availableAccounts = computed(() => {
     3: '抖音',
     2: '视频号',
     1: '小红书',
-    4: '快手'
+      4: '快手',
+      5: 'B站'
   }
   const currentPlatform = platformMap[props.platformKey]
   return currentPlatform ? accountStore.accounts.filter(acc => acc.platform === currentPlatform) : []

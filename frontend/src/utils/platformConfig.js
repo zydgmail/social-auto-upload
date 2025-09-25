@@ -42,6 +42,16 @@ export const PLATFORM_CONFIG = {
   }
 }
 
+// B站
+PLATFORM_CONFIG.BILIBILI = {
+  key: 5,
+  name: 'B站',
+  titleLimit: 80,
+  topicLimit: 10,
+  titlePlaceholder: '请输入标题（最多80字）',
+  topicPlaceholder: '最多可添加10个话题'
+}
+
 /**
  * 根据平台key获取平台配置
  * @param {number} platformKey 平台key

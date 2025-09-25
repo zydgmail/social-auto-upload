@@ -130,6 +130,39 @@ async def check_cookie(type, file_path, preview: bool = False):
         # 快手
         case 4:
             return await cookie_auth_ks(Path(BASE_DIR / "cookiesFile" / file_path), preview)
+        # B站
+        case 5:
+            async with async_playwright() as playwright:
+                browser = await launch_chromium_with_codecs(playwright, headless=not preview, executable_path=None)
+                context = await browser.new_context(storage_state=Path(BASE_DIR / "cookiesFile" / file_path))
+                context = await set_init_script(context)
+                page = await context.new_page()
+                try:
+                    await page.goto("https://member.bilibili.com/platform/upload/video/frame")
+                    # 若出现登录提示，视为无效
+                    if await page.get_by_text("登录").count():
+                        if preview:
+                            await page.wait_for_timeout(1500)
+                        await context.close()
+                        await browser.close()
+                        return False
+                    # 简单等待上传界面就绪
+                    await page.wait_for_timeout(1500)
+                    if preview:
+                        await page.wait_for_timeout(500)
+                    await context.close()
+                    await browser.close()
+                    return True
+                except Exception:
+                    try:
+                        await context.close()
+                    except Exception:
+                        pass
+                    try:
+                        await browser.close()
+                    except Exception:
+                        pass
+                    return False
         case _:
             return False
 

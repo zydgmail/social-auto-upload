@@ -53,22 +53,66 @@
             :platform-key="tab.selectedPlatform"
           />
 
-          <!-- 标题输入 -->
-          <TitleInput
-            v-model="tab.title"
-            :platform-key="tab.selectedPlatform"
-            @validation-change="(validation) => handleValidationChange('title', validation, tab)"
-          />
+          <!-- 渠道专属表单区域 -->
+          <div class="platform-forms">
+            <!-- 小红书表单 -->
+            <XiaohongshuForm
+              v-if="tab.selectedPlatform === 1"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
 
-          <!-- 话题输入 -->
-          <TopicInput
-            v-model="tab.selectedTopics"
-            :platform-key="tab.selectedPlatform"
-            @validation-change="(validation) => handleValidationChange('topics', validation, tab)"
-          />
+            <!-- 视频号表单 -->
+            <WechatVideoForm
+              v-if="tab.selectedPlatform === 2"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
 
-          <!-- 定时发布 -->
+            <!-- 抖音表单 -->
+            <DouyinForm
+              v-if="tab.selectedPlatform === 3"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
+
+            <!-- 快手表单 -->
+            <KuaishouForm
+              v-if="tab.selectedPlatform === 4"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
+
+            <!-- B站表单 -->
+            <BilibiliForm
+              v-if="tab.selectedPlatform === 5"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              v-model:bili-type="tab.biliType"
+              v-model:bili-partition="tab.biliPartition"
+              v-model:bili-desc="tab.biliDesc"
+              v-model:schedule-enabled="tab.scheduleEnabled"
+              v-model:schedule-time="tab.scheduleTime"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
+
+            <!-- 通用表单（fallback，用于新平台或未识别平台） -->
+            <CommonForm
+              v-if="![1,2,3,4,5].includes(tab.selectedPlatform)"
+              v-model:title="tab.title"
+              v-model:topics="tab.selectedTopics"
+              :platform-key="tab.selectedPlatform"
+              @validation-change="(field, validation) => handleValidationChange(field, validation, tab)"
+            />
+          </div>
+
+          <!-- 定时发布 (非B站平台) -->
           <ScheduleSettings
+            v-if="tab.selectedPlatform !== 5"
             v-model:schedule-enabled="tab.scheduleEnabled"
             v-model:videos-per-day="tab.videosPerDay"
             v-model:daily-times="tab.dailyTimes"
@@ -154,9 +198,15 @@ import TabManagement from '@/components/publish/TabManagement.vue'
 import VideoUpload from '@/components/publish/VideoUpload.vue'
 import PlatformSelection from '@/components/publish/PlatformSelection.vue'
 import AccountSelection from '@/components/publish/AccountSelection.vue'
-import TitleInput from '@/components/publish/TitleInput.vue'
-import TopicInput from '@/components/publish/TopicInput.vue'
 import ScheduleSettings from '@/components/publish/ScheduleSettings.vue'
+
+// 导入各平台专属表单组件
+import XiaohongshuForm from '@/components/publish/platforms/XiaohongshuForm.vue'
+import WechatVideoForm from '@/components/publish/platforms/WechatVideoForm.vue'
+import DouyinForm from '@/components/publish/platforms/DouyinForm.vue'
+import KuaishouForm from '@/components/publish/platforms/KuaishouForm.vue'
+import BilibiliForm from '@/components/publish/platforms/BilibiliForm.vue'
+import CommonForm from '@/components/publish/platforms/CommonForm.vue'
 
 // API base URL
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
@@ -184,7 +234,8 @@ const platformNames = {
   1: '小红书',
   2: '视频号',
   3: '抖音',
-  4: '快手'
+  4: '快手',
+  5: 'B站'
 }
 
 // 批量发布相关状态
@@ -213,6 +264,11 @@ const tabs = reactive([
     selectedPlatform: 1, // 选中的平台（单选）
     title: '',
     selectedTopics: [], // 话题列表（不带#号）
+      // B站扩展字段
+      biliType: '自制',
+      biliPartition: '',
+      biliDesc: '',
+      scheduleTime: '',  // B站定时发布时间
     scheduleEnabled: false, // 定时发布开关
     videosPerDay: 1, // 每天发布视频数量
     dailyTimes: ['10:00'], // 每天发布时间点列表
@@ -241,6 +297,10 @@ const addTab = () => {
     selectedPlatform: 1,
     title: '',
     selectedTopics: [],
+      biliType: '自制',
+      biliPartition: '',
+      biliDesc: '',
+      scheduleTime: '',  // B站定时发布时间
     scheduleEnabled: false,
     videosPerDay: 1,
     dailyTimes: ['10:00'],
@@ -412,6 +472,13 @@ const confirmPublish = async (tab) => {
       dailyTimes: tab.scheduleEnabled ? tab.dailyTimes || ['10:00'] : ['10:00'], // 每天发布时间点
       startDays: tab.scheduleEnabled ? tab.startDays || 0 : 0, // 从今天开始计算的发布天数，0表示明天，1表示后天
       category: 0 //表示非原创
+    }
+
+    // B站平台附加字段
+    if (tab.selectedPlatform === 5) {
+      publishData.biliType = tab.biliType
+      publishData.biliPartition = tab.biliPartition
+      publishData.biliDesc = tab.biliDesc
     }
     
     // 调用后端发布API
