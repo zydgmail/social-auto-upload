@@ -537,7 +537,7 @@ class BilibiliVideo:
 
         # 等待300秒再发布（用户观察和确认）
         bilibili_logger.info("[bilibili] waiting n seconds before publish...")
-        await asyncio.sleep(120)
+        await asyncio.sleep(3)
         
         # 发布
         bilibili_logger.info("[bilibili] click publish")
