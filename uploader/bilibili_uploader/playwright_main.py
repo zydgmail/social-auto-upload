@@ -478,6 +478,73 @@ class BilibiliVideo:
         
         bilibili_logger.error("[bilibili] 未找到任何发布按钮")
 
+    async def _wait_publish_result(self, page) -> bool:
+        """等待发布结果，返回是否发布成功"""
+        bilibili_logger.info("[bilibili] 等待发布结果...")
+        
+        # 轮询检测发布结果（最多等待60秒）
+        for i in range(60):
+            try:
+                # 1. 检测是否出现成功提示 - 基于实际HTML结构
+                success_indicators = [
+                    '.step-des:has-text("稿件投递成功")',  # 精确匹配实际成功页面
+                    '.video-complete .step-des',  # 成功页面的容器
+                    'text=稿件投递成功',  # 文本匹配
+                ]
+                
+                for indicator in success_indicators:
+                    if await page.locator(indicator).count():
+                        bilibili_logger.info(f"[bilibili] 检测到发布成功标识: {indicator}")
+                        return True
+                
+                # 2. 检测是否出现错误提示
+                error_indicators = [
+                    '.error-tip',
+                    '.error-message',
+                    '.upload-error',
+                    'text=发布失败',
+                    'text=投稿失败',
+                    'text=上传失败',
+                ]
+                
+                for indicator in error_indicators:
+                    if await page.locator(indicator).count():
+                        error_text = ""
+                        try:
+                            error_text = await page.locator(indicator).first.inner_text()
+                        except Exception:
+                            pass
+                        bilibili_logger.error(f"[bilibili] 检测到发布失败标识: {indicator}, 错误信息: {error_text}")
+                        return False
+                
+                # 3. 检测是否页面跳转（发布成功后通常会跳转）
+                current_url = page.url
+                if "upload" not in current_url and "member.bilibili.com" in current_url:
+                    bilibili_logger.info(f"[bilibili] 页面已跳转，可能发布成功: {current_url}")
+                    return True
+                
+                # 4. 检测发布按钮是否消失（表示正在处理）
+                publish_button_exists = False
+                for selector in ['span.submit-add:has-text("立即投稿")', '.submit-add:has-text("立即投稿")']:
+                    if await page.locator(selector).count():
+                        publish_button_exists = True
+                        break
+                
+                if not publish_button_exists:
+                    bilibili_logger.info("[bilibili] 发布按钮已消失，可能正在处理发布")
+                
+                # 每5秒打印一次状态
+                if i % 5 == 0:
+                    bilibili_logger.info(f"[bilibili] 仍在等待发布结果... ({i}秒)")
+                
+            except Exception as e:
+                bilibili_logger.warning(f"[bilibili] 检测发布结果时出错: {e}")
+            
+            await asyncio.sleep(1)
+        
+        bilibili_logger.warning("[bilibili] 发布结果检测超时（60秒）")
+        return False
+
     async def upload(self, playwright: Playwright) -> None:
         browser = await launch_chromium_with_codecs(
             playwright,
@@ -542,6 +609,14 @@ class BilibiliVideo:
         # 发布
         bilibili_logger.info("[bilibili] click publish")
         await self._click_publish(page)
+        
+        # 等待发布结果
+        publish_success = await self._wait_publish_result(page)
+        
+        if publish_success:
+            bilibili_logger.info("[bilibili] 视频发布成功！")
+        else:
+            bilibili_logger.error("[bilibili] 视频发布失败或超时")
 
         # 保存cookie
         await context.storage_state(path=str(self.account_file))
