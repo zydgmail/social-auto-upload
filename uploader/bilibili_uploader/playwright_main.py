@@ -456,17 +456,15 @@ class BilibiliVideo:
         # 基于实际HTML结构，发布按钮是span元素
         publish_selectors = [
             'span.submit-add:has-text("立即投稿")',  # 精确匹配实际结构
-            '.submit-add:has-text("立即投稿")',  # 类名匹配
-            'span:has-text("立即投稿")',  # span元素匹配
         ]
         
         for selector in publish_selectors:
             try:
                 if await page.locator(selector).count():
                     bilibili_logger.info(f"[bilibili] 找到发布按钮: {selector}")
-                    await page.locator(selector).first.scroll_into_view_if_needed()
-                    await page.wait_for_timeout(500)  # 等待元素稳定
-                    await page.locator(selector).first.click()
+                    await page.locator(selector).scroll_into_view_if_needed()
+                    await page.wait_for_timeout(1000)  # 等待元素稳定
+                    await page.locator(selector).click()
                     bilibili_logger.info(f"[bilibili] 成功点击发布按钮: {selector}")
                     
                     # 等待一下看是否有提交反应
@@ -620,7 +618,10 @@ class BilibiliVideo:
 
         # 保存cookie
         await context.storage_state(path=str(self.account_file))
-
+        # 关闭浏览器上下文和浏览器实例
+        await context.close()
+        await browser.close()
+        
     async def main(self) -> None:
         from playwright.async_api import async_playwright
         async with async_playwright() as playwright:

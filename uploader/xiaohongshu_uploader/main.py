@@ -183,8 +183,8 @@ class XiaoHongShuVideo(object):
         css_selector = ".tiptap.ProseMirror" # 更新为正确的CSS选择器，匹配contenteditable的div元素
         for _, tag in enumerate(self.tags, start=1):
             await page.type(css_selector, "#" + tag)
-            await page.keyboard.press("Enter")
             await asyncio.sleep(2)
+            await page.keyboard.press("Enter")
         xiaohongshu_logger.info(f'总共添加{len(self.tags)}个话题')
 
         if self.publish_date != 0:
