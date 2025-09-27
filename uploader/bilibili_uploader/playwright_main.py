@@ -526,6 +526,8 @@ class BilibiliVideo:
                 for selector in ['span.submit-add:has-text("立即投稿")', '.submit-add:has-text("立即投稿")']:
                     if await page.locator(selector).count():
                         publish_button_exists = True
+                        bilibili_logger.info(f"[bilibili] 发布按钮存在再点击,可能封面没有完全生成: {selector}")
+                        await page.locator(selector).click()
                         break
                 
                 if not publish_button_exists:
