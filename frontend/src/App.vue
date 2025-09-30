@@ -24,10 +24,14 @@
               <el-icon><User /></el-icon>
               <span>账号管理</span>
             </el-menu-item>
-            <el-menu-item index="/material-management">
-              <el-icon><Picture /></el-icon>
-              <span>素材管理</span>
-            </el-menu-item>
+            <el-sub-menu index="/material-management">
+              <template #title>
+                <el-icon><Picture /></el-icon>
+                <span>素材管理</span>
+              </template>
+              <el-menu-item index="/material-management/list">素材列表</el-menu-item>
+              <el-menu-item index="/material-management/cover">封面生成</el-menu-item>
+            </el-sub-menu>
             <el-menu-item index="/publish-center">
               <el-icon><Upload /></el-icon>
               <span>发布中心</span>
