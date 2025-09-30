@@ -35,6 +35,7 @@
           <el-table-column label="操作">
             <template #default="scope">
               <el-button size="small" @click="handlePreview(scope.row)">预览</el-button>
+              <el-button size="small" type="success" @click="downloadFile(scope.row)">下载</el-button>
               <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
             </template>
           </el-table-column>
@@ -302,14 +303,35 @@ const handleDelete = (material) => {
 
 // 获取预览URL
 const getPreviewUrl = (filePath) => {
-  const filename = filePath.split('/').pop()
+  const filename = (filePath || '').split('/').pop()
   return materialApi.getMaterialPreviewUrl(filename)
 }
 
-// 下载文件
-const downloadFile = (material) => {
-  const url = materialApi.downloadMaterial(material.file_path)
-  window.open(url, '_blank')
+// 下载文件（优先用预览接口拿二进制，避免跨域/响应头问题）
+const downloadFile = async (material) => {
+  const previewUrl = getPreviewUrl(material.file_path)
+  try {
+    const res = await fetch(previewUrl)
+    if (!res.ok) throw new Error('network')
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objectUrl
+    a.download = material.filename || 'download'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objectUrl)
+  } catch (e) {
+    // 兜底：新开页下载
+    const a = document.createElement('a')
+    a.href = previewUrl
+    a.target = '_blank'
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
 }
 
 // 判断文件类型

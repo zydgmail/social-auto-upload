@@ -14,6 +14,13 @@
             placeholder="输入封面标题，支持换行"
           />
         </el-form-item>
+        <el-form-item label="文件名">
+          <el-input
+            v-model="filename"
+            placeholder="不含扩展名，留空将自动生成"
+            clearable
+          />
+        </el-form-item>
         <el-form-item label="背景图片">
           <el-upload
             :auto-upload="false"
@@ -48,8 +55,8 @@
           <el-input-number v-model="wrapWidth" :min="6" :max="32" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="render">生成预览</el-button>
-          <el-button type="success" @click="download">下载PNG</el-button>
+           <el-button type="primary" @click="render">生成预览</el-button>
+           <el-button type="success" :loading="saving" @click="saveToMaterials">保存到素材</el-button>
         </el-form-item>
       </el-form>
 
@@ -62,7 +69,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { materialApi } from '@/api/material'
+import { useAppStore } from '@/stores/app'
 
 const title = ref('示例标题：AI 自动化运营系统\n高点击封面生成')
 const canvasWidth = ref(1280)
@@ -73,9 +83,24 @@ const strokeColor = ref('#ffffff')
 const strokeWidth = ref(12)
 const wrapWidth = ref(12)
 
+const appStore = useAppStore()
 const canvasRef = ref(null)
 const bgImage = ref(null)
 const bgName = ref('')
+const filename = ref('')
+
+const safeBaseName = computed(() => {
+  const base = (filename.value || title.value || 'cover')
+    .replace(/\r|\n/g, ' ')
+    .trim()
+    .replace(/[^\u4e00-\u9fa5\w\-\s]+/g, '')
+    .replace(/\s+/g, '-')
+    .slice(0, 40)
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  return `${base || 'cover'}-${stamp}`
+})
 
 function onBgChange(file) {
   const raw = file.raw || file
@@ -171,13 +196,44 @@ function render() {
   }
 }
 
-function download() {
+ function download() {
   const canvas = canvasRef.value
   if (!canvas) return
   const link = document.createElement('a')
-  link.download = 'cover.png'
+  link.download = `${safeBaseName.value}.png`
   link.href = canvas.toDataURL('image/png')
   link.click()
+}
+
+const saving = ref(false)
+async function saveToMaterials() {
+  const canvas = canvasRef.value
+  if (!canvas || saving.value) return
+  saving.value = true
+  try {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+    const file = new File([blob], `${safeBaseName.value}.png`, { type: 'image/png' })
+    const form = new FormData()
+    form.append('file', file)
+    form.append('filename', safeBaseName.value)
+    const res = await materialApi.uploadMaterial(form)
+    if (res.code === 200) {
+       // 成功后从服务器刷新素材列表，确保包含上传时间等元数据
+       try {
+         const list = await materialApi.getAllMaterials()
+         if (list.code === 200 && Array.isArray(list.data)) {
+           appStore.setMaterials(list.data)
+         }
+       } catch {}
+       ElMessage.success('封面已保存到素材')
+    } else {
+       ElMessage.error(res.msg || '保存失败')
+    }
+  } catch (e) {
+    ElMessage.error('保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 onMounted(() => {
