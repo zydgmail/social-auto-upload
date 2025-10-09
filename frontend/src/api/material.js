@@ -18,6 +18,11 @@ export const materialApi = {
     return http.get(`/deleteFile?id=${id}`)
   },
   
+  // 批量删除素材
+  batchDeleteMaterials: (ids) => {
+    return http.post('/batchDeleteFiles', { ids })
+  },
+  
   // 下载素材
   downloadMaterial: (filePath) => {
     return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'}/download/${filePath}`

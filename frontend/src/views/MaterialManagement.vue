@@ -15,6 +15,13 @@
           @input="handleSearch"
         />
         <div class="action-buttons">
+          <el-button 
+            type="danger" 
+            :disabled="selectedMaterials.length === 0"
+            @click="handleBatchDelete"
+          >
+            批量删除 ({{ selectedMaterials.length }})
+          </el-button>
           <el-button type="primary" @click="handleUploadMaterial">上传素材</el-button>
           <el-button type="info" @click="fetchMaterials" :loading="false">
             <el-icon :class="{ 'is-loading': isRefreshing }"><Refresh /></el-icon>
@@ -24,7 +31,12 @@
       </div>
       
       <div v-if="filteredMaterials.length > 0" class="material-list">
-        <el-table :data="filteredMaterials" style="width: 100%">
+        <el-table 
+          :data="filteredMaterials" 
+          style="width: 100%"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="55" />
           <el-table-column prop="filename" label="文件名" width="300" />
           <el-table-column prop="filesize" label="文件大小" width="120">
             <template #default="scope">
@@ -138,6 +150,9 @@ const searchKeyword = ref('')
 const isRefreshing = ref(false)
 const isUploading = ref(false)
 
+// 批量选择
+const selectedMaterials = ref([])
+
 // 对话框控制
 const uploadDialogVisible = ref(false)
 const previewDialogVisible = ref(false)
@@ -180,6 +195,53 @@ const filteredMaterials = computed(() => {
 // 搜索处理
 const handleSearch = () => {
   // 搜索逻辑已通过计算属性实现
+}
+
+// 处理表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedMaterials.value = selection
+}
+
+// 批量删除
+const handleBatchDelete = () => {
+  if (selectedMaterials.value.length === 0) {
+    ElMessage.warning('请选择要删除的素材')
+    return
+  }
+  
+  ElMessageBox.confirm(
+    `确定要删除选中的 ${selectedMaterials.value.length} 个素材吗？`,
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      try {
+        const ids = selectedMaterials.value.map(material => material.id)
+        const response = await materialApi.batchDeleteMaterials(ids)
+        
+        if (response.code === 200) {
+          // 从store中移除已删除的素材
+          ids.forEach(id => {
+            appStore.removeMaterial(id)
+          })
+          // 清空选择
+          selectedMaterials.value = []
+          ElMessage.success(`成功删除 ${ids.length} 个素材`)
+        } else {
+          ElMessage.error(response.msg || '批量删除失败')
+        }
+      } catch (error) {
+        console.error('批量删除素材出错:', error)
+        ElMessage.error('批量删除失败')
+      }
+    })
+    .catch(() => {
+      // 取消删除
+    })
 }
 
 // 上传素材

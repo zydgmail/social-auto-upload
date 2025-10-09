@@ -356,6 +356,66 @@ def delete_file():
             "data": None
         }), 500
 
+@app.route('/batchDeleteFiles', methods=['POST'])
+def batch_delete_files():
+    data = request.get_json()
+    
+    if not data or 'ids' not in data:
+        return jsonify({
+            "code": 400,
+            "msg": "Missing or invalid request data",
+            "data": None
+        }), 400
+    
+    ids = data['ids']
+    
+    if not isinstance(ids, list) or len(ids) == 0:
+        return jsonify({
+            "code": 400,
+            "msg": "Invalid IDs list",
+            "data": None
+        }), 400
+    
+    try:
+        # 获取数据库连接
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 查询要删除的记录
+            placeholders = ','.join(['?' for _ in ids])
+            cursor.execute(f"SELECT * FROM file_records WHERE id IN ({placeholders})", ids)
+            records = cursor.fetchall()
+            
+            if not records:
+                return jsonify({
+                    "code": 404,
+                    "msg": "No files found",
+                    "data": None
+                }), 404
+            
+            # 删除数据库记录
+            cursor.execute(f"DELETE FROM file_records WHERE id IN ({placeholders})", ids)
+            conn.commit()
+            
+            deleted_count = cursor.rowcount
+            
+        return jsonify({
+            "code": 200,
+            "msg": f"Successfully deleted {deleted_count} files",
+            "data": {
+                "deleted_count": deleted_count,
+                "deleted_ids": ids
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "msg": str("Batch delete failed!"),
+            "data": None
+        }), 500
+
 @app.route('/deleteAccount', methods=['GET'])
 def delete_account():
     account_id = int(request.args.get('id'))
