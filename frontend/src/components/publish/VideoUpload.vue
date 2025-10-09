@@ -2,9 +2,26 @@
   <div class="upload-section">
     <h3>视频</h3>
     <div class="upload-options">
-      <el-button type="primary" @click="showUploadOptions" class="upload-btn">
-        <el-icon><Upload /></el-icon>
-        上传视频
+      <el-upload
+        class="video-inline-upload"
+        :action="uploadAction"
+        :headers="authHeaders"
+        :auto-upload="true"
+        :show-file-list="false"
+        multiple
+        accept="video/*"
+        :on-success="handleUploadSuccess"
+        :on-error="handleUploadError"
+      >
+        <el-button type="primary" class="option-btn">
+          <el-icon><Upload /></el-icon>
+          本地上传视频
+        </el-button>
+      </el-upload>
+
+      <el-button type="success" class="option-btn" @click="selectMaterialLibrary">
+        <el-icon><Folder /></el-icon>
+        从素材库选择
       </el-button>
     </div>
     
@@ -20,54 +37,7 @@
       </div>
     </div>
 
-    <!-- 上传选项弹窗 -->
-    <el-dialog
-      v-model="uploadOptionsVisible"
-      title="选择上传方式"
-      width="400px"
-      class="upload-options-dialog"
-    >
-      <div class="upload-options-content">
-        <el-button type="primary" @click="selectLocalUpload" class="option-btn">
-          <el-icon><Upload /></el-icon>
-          本地上传
-        </el-button>
-        <el-button type="success" @click="selectMaterialLibrary" class="option-btn">
-          <el-icon><Folder /></el-icon>
-          素材库
-        </el-button>
-      </div>
-    </el-dialog>
-
-    <!-- 本地上传弹窗 -->
-    <el-dialog
-      v-model="localUploadVisible"
-      title="本地上传"
-      width="600px"
-      class="local-upload-dialog"
-    >
-      <el-upload
-        class="video-upload"
-        drag
-        :auto-upload="true"
-        :action="uploadAction"
-        :on-success="handleUploadSuccess"
-        :on-error="handleUploadError"
-        multiple
-        accept="video/*"
-        :headers="authHeaders"
-      >
-        <el-icon class="el-icon--upload"><Upload /></el-icon>
-        <div class="el-upload__text">
-          将视频文件拖到此处，或<em>点击上传</em>
-        </div>
-        <template #tip>
-          <div class="el-upload__tip">
-            支持MP4、AVI等视频格式，可上传多个文件
-          </div>
-        </template>
-      </el-upload>
-    </el-dialog>
+    <!-- 旧交互弹窗已取消，保留占位以便未来复用：本地上传弹窗与方式选择弹窗均改为行内按钮 -->
 
     <!-- 素材库选择弹窗 -->
     <el-dialog
@@ -151,21 +121,11 @@ const videoMaterials = computed(() => {
 })
 
 // 弹窗状态
-const uploadOptionsVisible = ref(false)
-const localUploadVisible = ref(false)
 const materialLibraryVisible = ref(false)
 const selectedMaterials = ref([])
 
-// 选择本地上传
-const selectLocalUpload = () => {
-  uploadOptionsVisible.value = false
-  localUploadVisible.value = true
-}
-
 // 选择素材库
 const selectMaterialLibrary = async () => {
-  uploadOptionsVisible.value = false
-  
   // 如果素材库为空，先获取素材数据
   if (props.materials.length === 0) {
     try {
@@ -219,15 +179,8 @@ const confirmMaterialSelection = () => {
   ElMessage.success(`已添加 ${addedCount} 个素材`)
 }
 
-// 显示上传选项
-const showUploadOptions = () => {
-  uploadOptionsVisible.value = true
-}
-
-// 暴露方法给父组件
-defineExpose({
-  showUploadOptions
-})
+// 暴露方法给父组件（为空，占位兼容旧使用）
+defineExpose({})
 </script>
 
 <style lang="scss" scoped>
@@ -243,29 +196,13 @@ defineExpose({
   
   .upload-options {
     margin-bottom: 20px;
-  }
-  
-  .video-upload {
-    width: 100%;
-    
-    :deep(.el-upload-dragger) {
-      width: 100%;
-      height: 180px;
-    }
-  }
-  
-  .upload-options-content {
     display: flex;
-    flex-direction: column;
-    gap: 15px;
-    
-    .option-btn {
-      width: 100%;
-      height: 50px;
-      font-size: 16px;
-      margin: 0 !important; // 重置所有margin
-    }
+    gap: 10px;
   }
+  
+  /* 使用组件默认样式 */
+  
+  /* 使用按钮默认样式 */
   
   .material-library-content {
     max-height: 400px;

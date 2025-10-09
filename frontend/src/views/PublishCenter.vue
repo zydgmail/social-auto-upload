@@ -41,6 +41,45 @@
             @material-selected="(materials) => handleMaterialSelected(materials, tab)"
           />
 
+          <!-- 封面上传（可选） -->
+          <div class="cover-section">
+            <h3>封面（可选）</h3>
+            <div class="cover-actions">
+              <el-upload
+                class="cover-upload"
+                :action="`${apiBaseUrl}/upload`"
+                :headers="authHeaders"
+                :auto-upload="true"
+                :show-file-list="false"
+                accept="image/*"
+                :on-success="(response, file) => handleCoverUploadSuccess(response, file, tab)"
+                :on-error="handleCoverUploadError"
+              >
+                <el-button type="primary" size="small">本地上传封面</el-button>
+              </el-upload>
+              <el-button size="small" @click="openCoverLibrary(tab)">从素材库选择</el-button>
+              <el-button 
+                v-if="tab.coverImage"
+                size="small"
+                type="danger"
+                @click="removeCover(tab)"
+              >移除封面</el-button>
+            </div>
+
+            <div v-if="tab.coverImage" class="cover-preview">
+              <el-image
+                :src="tab.coverImage.url"
+                :preview-src-list="[tab.coverImage.url]"
+                fit="cover"
+                style="width: 160px; height: 90px; border-radius: 4px; overflow: hidden;"
+              />
+              <div class="cover-meta">
+                <span class="name">{{ tab.coverImage.name }}</span>
+                <span class="size">{{ (tab.coverImage.size / 1024 / 1024).toFixed(2) }}MB</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 平台选择 -->
           <PlatformSelection
             v-model="tab.selectedPlatform"
@@ -180,6 +219,45 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 封面素材库选择弹窗 -->
+    <el-dialog
+      v-model="coverLibraryVisible"
+      title="选择封面"
+      width="800px"
+    >
+      <div class="cover-library-content">
+        <div v-if="imageMaterials.length === 0" class="empty-image-materials">
+          <el-empty description="暂无图片文件" />
+          <p class="empty-tip">素材库中没有找到图片文件，请先上传图片到素材库</p>
+        </div>
+        <el-radio-group v-else v-model="selectedCoverMaterialId">
+          <div class="material-list">
+            <div
+              v-for="material in imageMaterials"
+              :key="material.id"
+              class="material-item"
+            >
+              <el-radio :label="material.id" class="material-radio">
+                <div class="material-info">
+                  <div class="material-name">{{ material.filename }}</div>
+                  <div class="material-details">
+                    <span class="file-size">{{ material.filesize }}MB</span>
+                    <span class="upload-time">{{ material.upload_time }}</span>
+                  </div>
+                </div>
+              </el-radio>
+            </div>
+          </div>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="coverLibraryVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmCoverSelection">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -229,6 +307,20 @@ const accountStore = useAccountStore()
 // 素材数据
 const materials = computed(() => appStore.materials)
 
+// 当前打开封面库的 tab 引用与弹窗状态
+const coverLibraryVisible = ref(false)
+const coverSelectingTab = ref(null)
+const selectedCoverMaterialId = ref(null)
+
+// 图片素材过滤
+const imageMaterials = computed(() => {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+  return materials.value.filter(material => {
+    const filename = (material.filename || '').toLowerCase()
+    return imageExtensions.some(ext => filename.endsWith(ext))
+  })
+})
+
 // 平台显示名映射
 const platformNames = {
   1: '小红书',
@@ -274,7 +366,8 @@ const tabs = reactive([
     dailyTimes: ['10:00'], // 每天发布时间点列表
     startDays: 0, // 从今天开始计算的发布天数，0表示明天，1表示后天
     publishStatus: null, // 发布状态，包含message和type
-    validationErrors: {} // 验证错误信息
+    validationErrors: {}, // 验证错误信息
+    coverImage: null // 可选封面信息
   }
 ])
 
@@ -306,7 +399,8 @@ const addTab = () => {
     dailyTimes: ['10:00'],
     startDays: 0,
     publishStatus: null,
-    validationErrors: {}
+    validationErrors: {},
+    coverImage: null
   }
   tabs.push(newTab)
   activeTab.value = newTab.name
@@ -374,6 +468,62 @@ const handleUploadSuccess = (response, file, tab) => {
   } else {
     ElMessage.error(response.msg || '上传失败')
   }
+}
+
+// 处理封面上传成功
+const handleCoverUploadSuccess = (response, file, tab) => {
+  if (response.code === 200) {
+    const filePath = response.data.path || response.data
+    const filename = String(filePath).split('/').pop()
+    tab.coverImage = {
+      name: file.name,
+      url: materialApi.getMaterialPreviewUrl(filename),
+      path: filePath,
+      size: file.size,
+      type: file.type || 'image/*'
+    }
+    ElMessage.success('封面上传成功')
+  } else {
+    ElMessage.error(response.msg || '封面上传失败')
+  }
+}
+
+const handleCoverUploadError = () => {
+  ElMessage.error('封面上传失败')
+}
+
+const openCoverLibrary = (tab) => {
+  coverSelectingTab.value = tab
+  selectedCoverMaterialId.value = tab.coverImage ? tab.coverImage.materialId || null : null
+  coverLibraryVisible.value = true
+}
+
+const confirmCoverSelection = () => {
+  if (!coverSelectingTab.value) {
+    coverLibraryVisible.value = false
+    return
+  }
+  const material = imageMaterials.value.find(m => m.id === selectedCoverMaterialId.value)
+  if (!material) {
+    ElMessage.warning('请选择一个图片素材作为封面')
+    return
+  }
+  const filename = String(material.file_path || '').split('/').pop()
+  coverSelectingTab.value.coverImage = {
+    materialId: material.id,
+    name: material.filename,
+    url: materialApi.getMaterialPreviewUrl(filename),
+    path: material.file_path,
+    size: Number(material.filesize || 0) * 1024 * 1024,
+    type: 'image/*'
+  }
+  coverLibraryVisible.value = false
+  ElMessage.success('已选择封面')
+}
+
+const removeCover = (tab) => {
+  tab.coverImage = null
+  ElMessage.success('已移除封面')
 }
 
 // 处理素材选择
@@ -474,6 +624,11 @@ const confirmPublish = async (tab) => {
       category: 0 //表示非原创
     }
 
+    // 可选封面
+    if (tab.coverImage && tab.coverImage.path) {
+      publishData.coverPath = tab.coverImage.path
+    }
+
     // B站平台附加字段
     if (tab.selectedPlatform === 5) {
       publishData.biliType = tab.biliType
@@ -505,6 +660,7 @@ const confirmPublish = async (tab) => {
         tab.selectedAccounts = []
         tab.scheduleEnabled = false
         tab.validationErrors = {}
+        tab.coverImage = null
         resolve()
       } else {
         tab.publishStatus = {
@@ -658,6 +814,49 @@ const cancelBatchPublish = () => {
         .publish-status {
           margin-bottom: 20px;
         }
+
+        .cover-section {
+          margin-top: 20px;
+          padding: 16px;
+          background-color: #f5f7fa;
+          border-radius: 4px;
+
+          h3 {
+            font-size: 16px;
+            font-weight: 500;
+            color: #303133;
+            margin: 0 0 10px 0;
+          }
+
+          .cover-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+          }
+
+          .cover-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            .cover-meta {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+
+              .name {
+                font-weight: 500;
+                color: #303133;
+              }
+
+              .size {
+                font-size: 12px;
+                color: #909399;
+              }
+            }
+          }
+        }
         
         .action-buttons {
           display: flex;
@@ -724,6 +923,52 @@ const cancelBatchPublish = () => {
 
   .dialog-footer {
     text-align: right;
+  }
+}
+
+.cover-library-content {
+  max-height: 400px;
+  overflow-y: auto;
+
+  .empty-image-materials {
+    text-align: center;
+    padding: 40px 20px;
+
+    .empty-tip {
+      margin-top: 10px;
+      color: #909399;
+      font-size: 14px;
+    }
+  }
+
+  .material-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .material-item {
+      .material-radio {
+        width: 100%;
+
+        .material-info {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+
+          .material-name {
+            font-weight: 500;
+            color: #303133;
+          }
+
+          .material-details {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: #909399;
+          }
+        }
+      }
+    }
   }
 }
 </style>
