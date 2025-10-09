@@ -77,10 +77,14 @@
       class="material-library-dialog"
     >
       <div class="material-library-content">
-        <el-checkbox-group v-model="selectedMaterials">
+        <div v-if="videoMaterials.length === 0" class="empty-video-materials">
+          <el-empty description="暂无视频文件" />
+          <p class="empty-tip">素材库中没有找到视频文件，请先上传视频文件到素材库</p>
+        </div>
+        <el-checkbox-group v-else v-model="selectedMaterials">
           <div class="material-list">
             <div
-              v-for="material in materials"
+              v-for="material in videoMaterials"
               :key="material.id"
               class="material-item"
             >
@@ -136,6 +140,15 @@ const props = defineProps({
 const emit = defineEmits(['show-upload-options', 'remove-file', 'upload-success', 'material-selected'])
 
 const appStore = useAppStore()
+
+// 过滤出视频文件
+const videoMaterials = computed(() => {
+  const videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', '.m4v']
+  return props.materials.filter(material => {
+    const filename = material.filename.toLowerCase()
+    return videoExtensions.some(ext => filename.endsWith(ext))
+  })
+})
 
 // 弹窗状态
 const uploadOptionsVisible = ref(false)
@@ -257,6 +270,17 @@ defineExpose({
   .material-library-content {
     max-height: 400px;
     overflow-y: auto;
+    
+    .empty-video-materials {
+      text-align: center;
+      padding: 40px 20px;
+      
+      .empty-tip {
+        margin-top: 10px;
+        color: #909399;
+        font-size: 14px;
+      }
+    }
     
     .material-list {
       display: flex;
