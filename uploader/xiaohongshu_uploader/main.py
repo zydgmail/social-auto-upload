@@ -164,10 +164,9 @@ class XiaoHongShuVideo(object):
                 print(f"  [-] 检测过程出错: {str(e)}，重新尝试...")
                 await asyncio.sleep(0.5)  # 等待0.5秒后重新尝试
 
-        # 填充标题和话题
-        # 检查是否存在包含输入框的元素
-        # 这里为了避免页面变化，故使用相对位置定位：作品标题父级右侧第一个元素的input子元素
-        await asyncio.sleep(1)
+        await self.set_thumbnail(page, self.thumbnail_path)
+        await asyncio.sleep(3)
+
         xiaohongshu_logger.info(f'  [-] 正在填充标题和话题...')
         title_container = page.locator('div.plugin.title-container').locator('input.d-text')
         if await title_container.count():
@@ -216,21 +215,53 @@ class XiaoHongShuVideo(object):
         # 关闭浏览器上下文和浏览器实例
         await context.close()
         await browser.close()
-    
+
     async def set_thumbnail(self, page: Page, thumbnail_path: str):
         if thumbnail_path:
-            await page.click('text="选择封面"')
-            await page.wait_for_selector("div.semi-modal-content:visible")
-            await page.click('text="设置竖封面"')
-            await page.wait_for_timeout(2000)  # 等待2秒
-            # 定位到上传区域并点击
-            await page.locator("div[class^='semi-upload upload'] >> input.semi-upload-hidden-input").set_input_files(thumbnail_path)
-            await page.wait_for_timeout(2000)  # 等待2秒
-            await page.locator("div[class^='extractFooter'] button:visible:has-text('完成')").click()
-            # finish_confirm_element = page.locator("div[class^='confirmBtn'] >> div:has-text('完成')")
-            # if await finish_confirm_element.count():
-            #     await finish_confirm_element.click()
-            # await page.locator("div[class^='footer'] button:has-text('完成')").click()
+            # 打开封面编辑弹窗（兼容多版本：文本按钮或卡片“设置封面”）
+            try:
+                container = page.locator('div.default.column.center.pointer.row')
+                await container.get_by_text("设置封面").click()
+                xiaohongshu_logger.info("设置封面成功")
+            except Exception:
+                xiaohongshu_logger.error("设置封面失败，尝试使用旧选择器")
+                try:
+                    await page.locator('div.text:has-text("设置封面")').first.click()
+                except Exception:
+                    pass
+
+            # 等弹窗出现
+            try:
+                # 新版弹窗容器
+                await page.wait_for_selector("div.upload-btn, div.semi-modal-content:visible", timeout=5000)
+                xiaohongshu_logger.info("等待上传封面的弹窗出现了")
+            except Exception:
+                xiaohongshu_logger.warning("未识别到等待的弹窗出现")
+                await page.wait_for_timeout(500)
+
+            # 新版：点击“上传图片”并通过文件选择器上传
+            if await page.locator('div.upload-btn:has-text("上传图片")').first.count():
+                async with page.expect_file_chooser() as fc_info:
+                    await page.locator('div.upload-btn:has-text("上传图片")').first.click()
+                file_chooser = await fc_info.value
+                await file_chooser.set_files(thumbnail_path)
+            else:
+                # 若存在隐藏 input[type=file]
+                xiaohongshu_logger.info("未识别到上传图片按钮，尝试使用旧选择器")
+                possible_input = page.locator('div.upload-btn input[type="file"]')
+                await possible_input.set_input_files(thumbnail_path)
+
+
+            # 等待上传稳定
+            await page.wait_for_timeout(2000)
+
+            # 优先点击“确定”，若无则点击“完成”
+            try:
+                confirm_btn = page.locator("button:visible:has-text('确定')").first
+                await confirm_btn.click()
+                xiaohongshu_logger.info("点击确定按钮成功")
+            except Exception:
+                pass
 
     async def set_location(self, page: Page, location: str = "青岛市"):
         print(f"开始设置位置: {location}")

@@ -498,6 +498,7 @@ def postVideo():
     tags = data.get('tags')
     category = data.get('category')
     enableTimer = data.get('enableTimer')
+    cover_path = data.get('coverPath')  # 可选封面路径（相对 videoFile 下的存储名）
     # B站专用字段
     bili_desc = data.get('biliDesc')
     bili_type = data.get('biliType')  # 自制/转载
@@ -514,19 +515,19 @@ def postVideo():
     match type:
         case 1:
             post_video_xhs(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                               start_days)
+                               start_days, cover_path=cover_path)
         case 2:
             post_video_tencent(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                               start_days)
+                               start_days, cover_path=cover_path)
         case 3:
             post_video_DouYin(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                      start_days)
+                      start_days, cover_path=cover_path)
         case 4:
             post_video_ks(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                      start_days)
+                      start_days, cover_path=cover_path)
         case 5:
             post_video_bilibili(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                      start_days, desc=bili_desc, bili_type=bili_type, bili_partition=bili_partition)
+                      start_days, desc=bili_desc, bili_type=bili_type, bili_partition=bili_partition, cover_path=cover_path)
     # 返回响应给客户端
     return jsonify(
         {
