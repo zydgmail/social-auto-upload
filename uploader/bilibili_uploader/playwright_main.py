@@ -588,7 +588,9 @@ class BilibiliVideo:
         bilibili_logger.info("[bilibili] wait upload complete")
         # 等待上传完成或稳定
         await self._wait_upload_complete(page)
-
+        await asyncio.sleep(1)
+        # 设置封面（可选）
+        await self._set_cover(page)
         await asyncio.sleep(1)
         await self._fill_title(page)
         await asyncio.sleep(1)
@@ -628,5 +630,30 @@ class BilibiliVideo:
         from playwright.async_api import async_playwright
         async with async_playwright() as playwright:
             await self.upload(playwright)
+
+    async def _set_cover(self, page) -> None:
+        if not self.thumbnail_path:
+            return
+        try:
+            await page.wait_for_selector('span:text("更换封面")', state="visible")
+            await page.locator('span:text("更换封面")').click()
+            bilibili_logger.info("[bilibili] 点击更换封面成功")
+            await asyncio.sleep(1)
+            upload_cover_btn = 'div.cover-select-header-tab-item:has-text("上传封面")'
+            await page.wait_for_selector(upload_cover_btn, state="visible")
+            bilibili_logger.info("[bilibili] 等待上传封面成功")
+            await page.locator(upload_cover_btn).click()
+            bilibili_logger.info("[bilibili] 点击上传封面成功")
+
+            await page.set_input_files('input[type="file"][accept*="image"]', self.thumbnail_path)
+            bilibili_logger.info("[bilibili] 上传封面成功")
+
+            await page.click('button:has-text("完成")')
+            bilibili_logger.info("[bilibili] 点击完成成功")
+        except Exception as e:
+            # 忽略封面设置失败，不阻断后续流程
+            bilibili_logger.error("[bilibili] 设置封面失败")
+            bilibili_logger.error(e)
+            return
 
 
