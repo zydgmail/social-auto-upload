@@ -71,12 +71,13 @@ async def douyin_cookie_gen(account_file):
 
 
 class DouYinVideo(object):
-    def __init__(self, title, file_path, tags, publish_date: datetime, account_file, thumbnail_path=None):
+    def __init__(self, title, file_path, tags, publish_date: datetime, account_file, category=None, thumbnail_path=None):
         self.title = title  # 视频标题
         self.file_path = file_path
         self.tags = tags
         self.publish_date = publish_date
         self.account_file = account_file
+        self.category = category  # 新增category参数
         self.date_format = '%Y年%m月%d日 %H:%M'
         self.local_executable_path = LOCAL_CHROME_PATH
         self.thumbnail_path = thumbnail_path
@@ -159,7 +160,7 @@ class DouYinVideo(object):
         
         #上传视频封面
         await self.set_thumbnail(page, self.thumbnail_path)
-
+        await asyncio.sleep(1)
         # # 頭條/西瓜
         # third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'
         # # 定位是否有第三方平台
@@ -197,28 +198,22 @@ class DouYinVideo(object):
     
     async def set_thumbnail(self, page: Page, thumbnail_path: str):
         if thumbnail_path:
-            await page.click('text="选择封面"')
-            await page.wait_for_selector("div.semi-modal-content:visible")
-            await page.click('text="设置竖封面"')
-            await page.wait_for_timeout(2000)  # 等待2秒
+    # 1. 先锁定“横封面4:3”文字所在的卡片区域
+            card = page.locator('div').filter(has_text='横封面4:3').locator("div[class^='cover']").first
+            await card.wait_for(state='visible')
+            await card.click() # 等待2秒
+            douyin_logger.info("点击成功->横封面4:3选择封面")
+            await asyncio.sleep(2)
             # 定位到上传区域并点击
-            await page.locator("div[class^='semi-upload upload'] >> input.semi-upload-hidden-input").set_input_files(thumbnail_path)
-            await page.wait_for_timeout(2000)  # 等待2秒
-            await page.locator("div[class^='extractFooter'] button:visible:has-text('完成')").click()
-            # finish_confirm_element = page.locator("div[class^='confirmBtn'] >> div:has-text('完成')")
-            # if await finish_confirm_element.count():
-            #     await finish_confirm_element.click()
-            # await page.locator("div[class^='footer'] button:has-text('完成')").click()
+            file_input = page.locator('input[type="file"].semi-upload-hidden-input')
+            await file_input.nth(0).set_input_files(thumbnail_path)
+            douyin_logger.info("上传封面成功")
+            await asyncio.sleep(2)
+            await page.click('button:has-text("完成")')
+            douyin_logger.info("点击完成成功")
         else:
-            # try:
-            #     douyin_logger.info("正在等待智能推荐封面...")
-            #     await page.locator('span:text("智能推荐封面")').wait_for(timeout=30000)
-            #     await page.locator("div[class^='recommendCover-']").first.click()
-            #     await page.locator('button:has-text("确定")').click()
-            # except:
-                # douyin_logger.info("智能推荐封面超时，跳过不要封面了...")
             douyin_logger.info("没上传封面，就不要封面了，让系统自动生成吧...")
-            await asyncio.sleep(3)
+        await asyncio.sleep(1)
 
     async def set_location(self, page: Page, location: str = "杭州市"):
         # todo supoort location later

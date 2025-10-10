@@ -80,13 +80,14 @@ async def weixin_setup(account_file, handle=False):
 
 
 class TencentVideo(object):
-    def __init__(self, title, file_path, tags, publish_date: datetime, account_file, category=None):
+    def __init__(self, title, file_path, tags, publish_date: datetime, account_file, category=None, thumbnail_path=None):
         self.title = title  # 视频标题
         self.file_path = file_path
         self.tags = tags
         self.publish_date = publish_date
         self.account_file = account_file
         self.category = category
+        self.thumbnail_path = thumbnail_path
         self.local_executable_path = LOCAL_CHROME_PATH
 
     async def set_schedule_time_tencent(self, page, publish_date):
@@ -154,6 +155,54 @@ class TencentVideo(object):
         # await page.wait_for_selector('input[type="file"]', timeout=10000)
         file_input = page.locator('input[type="file"]')
         await file_input.set_input_files(self.file_path)
+        tencent_logger.info("视频号视频上传中...")
+        
+        # Wait for cover generation to complete
+        tencent_logger.info("等待封面生成完成...")
+        await asyncio.sleep(5)
+        # Wait for "生成中" text to disappear, indicating cover generation is complete
+        try:
+            await page.wait_for_selector('.gen-text:has-text("生成中")', state='hidden', timeout=30000)
+            tencent_logger.info("封面生成完成")
+        except:
+            tencent_logger.info("未检测到生成中文本，继续等待")
+        
+        # Wait for cover wrap to appear with 4:3 text
+        await page.wait_for_selector('.horizon-cover-wrap:has-text("4:3")')
+        tencent_logger.info("检测到4:3封面选项")
+        
+        # Additional wait to ensure cover is fully generated
+        await asyncio.sleep(2)
+        
+        # Try clicking the edit button with multiple strategies
+        edit_button = page.locator('div.horizon-cover-wrap:has-text("4:3") .edit-btn')
+        
+        try:
+            # First try normal click
+            await edit_button.click(timeout=5000)
+            tencent_logger.info("编辑封面弹窗点击成功")
+        except Exception as e:
+            tencent_logger.warning(f"普通点击失败: {e}, 尝试强制点击")
+            try:
+                # Try force click
+                await edit_button.click(force=True, timeout=5000)
+                tencent_logger.info("强制点击编辑封面弹窗成功")
+            except Exception as e2:
+                tencent_logger.warning(f"强制点击失败: {e2}, 尝试JavaScript点击")
+                # Try JavaScript click as fallback
+                await edit_button.evaluate('element => element.click()')
+                tencent_logger.info("JavaScript点击编辑封面弹窗成功")
+        
+        # Wait a moment for the UI to settle after clicking edit button
+        await asyncio.sleep(2)
+        
+        # Use more specific selector for thumbnail upload input
+        thumbnail_input = page.locator('input[type="file"][accept*="image"]')
+        await thumbnail_input.set_input_files(self.thumbnail_path)
+        await page.get_by_role("button", name="确认").click()
+        await asyncio.sleep(3)
+
+
         # 填充标题和话题
         await self.add_title_tags(page)
         # 添加商品

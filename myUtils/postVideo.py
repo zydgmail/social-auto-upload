@@ -47,7 +47,7 @@ def post_video_DouYin(title,files,tags,account_file,category=TencentZoneTypes.LI
             print(f"标题：{title}")
             print(f"Hashtag：{tags}")
             thumb = str(Path(BASE_DIR / "videoFile" / cover_path)) if cover_path else None
-            app = DouYinVideo(title, str(file), tags, publish_datetimes[index], cookie, category, thumbnail_path=thumb)
+            app = DouYinVideo(title, str(file), tags, publish_datetimes[index], cookie, category=category, thumbnail_path=thumb)
             asyncio.run(app.main(), debug=False)
 
 
