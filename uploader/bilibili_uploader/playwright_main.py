@@ -635,6 +635,7 @@ class BilibiliVideo:
         if not self.thumbnail_path:
             return
         try:
+            bilibili_logger.info("[bilibili] 等待系统封面生成...后续也可优化不等待更换封面直接点击上传封面")
             await page.wait_for_selector('span:text("更换封面")', state="visible")
             await page.locator('span:text("更换封面")').click()
             bilibili_logger.info("[bilibili] 点击更换封面成功")

@@ -178,11 +178,12 @@ class TencentVideo(object):
         edit_button = page.locator('div.horizon-cover-wrap:has-text("4:3") .edit-btn')
         
         try:
-            # First try normal click
-            await edit_button.click(timeout=5000)
+            await edit_button.wait_for(state='visible', timeout=15000)
+            await edit_button.wait_for(state='attached', timeout=15000)
+            await edit_button.click()
             tencent_logger.info("编辑封面弹窗点击成功")
         except Exception as e:
-            tencent_logger.warning(f"普通点击失败: {e}, 尝试强制点击")
+            tencent_logger.warning(f"[tencent]普通点击失败: {e}, 尝试强制点击")
             try:
                 # Try force click
                 await edit_button.click(force=True, timeout=5000)
